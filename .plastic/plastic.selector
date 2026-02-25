@@ -1,0 +1,3 @@
+repository "Thuy_chien1/Thuy_chien1@18968369004975@cloud"
+  path "/"
+    smartbranch "/main/develop/BaseGame"
