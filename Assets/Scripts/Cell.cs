@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using AudioSystem;
 
 /// <summary>
 /// Script quản lý từng ô trong lưới
@@ -20,6 +21,10 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
     [Header("State Sprites")]
     public Sprite emptySprite; // Sprite dấu O
     public Sprite hitSprite;   // Sprite dấu X
+
+    [Header("Effects")]
+    public GameObject hitAnimationPrefab;
+    public GameObject missAnimationPrefab;
 
     [Header("Ship Reference")]
     public Ship occupyingShip; // Tàu đang chiếm ô này (nếu có)
@@ -123,7 +128,9 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
         {
             // Trúng tàu
             cellState = CellState.Hit;
+            AudioManager.Instance.PlayAudio("Hit");
             occupyingShip.TakeHit(this);
+            SpawnAnimation(hitAnimationPrefab);
             UpdateVisual();
             return true;
         }
@@ -131,6 +138,8 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
         {
             // Trượt
             cellState = CellState.Empty;
+            AudioManager.Instance.PlayAudio("Miss");
+            SpawnAnimation(missAnimationPrefab);
             UpdateVisual();
             return false;
         }
@@ -151,4 +160,18 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
     {
         return occupyingShip == null;
     }
+
+    private void SpawnAnimation(GameObject prefab)
+    {
+        if (prefab == null) return;
+        Vector3 spawnPos = spriteRenderer.bounds.center;
+
+        Instantiate(
+            prefab,
+            spawnPos,
+            Quaternion.identity,
+            transform
+        );
+    }
+
 }

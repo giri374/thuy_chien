@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 394bbc10cbe467e43a252e98190ea4f3, type: 3}
+  m_Name: AudioData
+  m_EditorClassIdentifier: 
+  Audios:
+  - name: BattleMusic
+    audioClip: {fileID: 8300000, guid: d26422b63da590343802b2b44a70493a, type: 3}
+    volume: 0.176
+    pitch: 1
+    isLoop: 1
+  - name: Click
+    audioClip: {fileID: 8300000, guid: 5c12c27549642bc4ea4d21ccc5eae400, type: 3}
+    volume: 0.5
+    pitch: 1
+    isLoop: 0
+  - name: Miss
+    audioClip: {fileID: 8300000, guid: a9fc5c3d39b6f684a9c97b738440c529, type: 3}
+    volume: 0.5
+    pitch: 1
+    isLoop: 0
+  - name: Hit
+    audioClip: {fileID: 8300000, guid: ba85aff0e96b131468feb1a1400c4bf3, type: 3}
+    volume: 0.624
+    pitch: 1
+    isLoop: 0
+  - name: Win
+    audioClip: {fileID: 8300000, guid: bf22e785b97a5eb4d828ec2b6d775da2, type: 3}
+    volume: 0.5
+    pitch: 1
+    isLoop: 0
+  - name: Lose
+    audioClip: {fileID: 8300000, guid: a24944315398fc94a9b55a73fbca5f1a, type: 3}
+    volume: 0.5
+    pitch: 1
+    isLoop: 0
+  - name: ChangeTurn
+    audioClip: {fileID: 8300000, guid: ad2ae34e0cbd17a43a34dad04b0b8d08, type: 3}
+    volume: 0.5
+    pitch: 1
+    isLoop: 0
+  - name: BattleshipBackground
+    audioClip: {fileID: 8300000, guid: 226d6392c01386440a1cea5bae6ce8db, type: 3}
+    volume: 0.182
+    pitch: 1
+    isLoop: 0

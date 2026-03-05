@@ -182,4 +182,27 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         transform.position = originalPosition;
         ResetColor();
     }
+
+    /// <summary>
+    /// Dùng cho auto/random placement từ SetupSceneManager.
+    /// </summary>
+    public bool TryPlaceAt(Vector2Int origin, bool horizontal)
+    {
+        if (gridManager == null || ship == null)
+            return false;
+
+        if (isPlaced)
+            RemoveShipFromGrid();
+
+        // Đảm bảo hướng khớp trước khi check vị trí hợp lệ
+        if (ship.isHorizontal != horizontal)
+            ship.Rotate();
+
+        currentSnapPos = origin;
+        bool success = TryPlaceAtCurrentSnap();
+        if (!success)
+            transform.position = originalPosition;
+
+        return success;
+    }
 }

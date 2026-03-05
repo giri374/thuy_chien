@@ -21,7 +21,9 @@ public class SetupSceneManager : MonoBehaviour
     [Header("UI")]
     public Button confirmButton;       // Nút "Xác nhận / Sẵn sàng"
     public Button resetButton;         // Nút "Đặt lại"
+    public Button randomButton;        // Nút "Đặt tàu ngẫu nhiên"
     public TextMeshProUGUI titleText;  // "Player 1 - Đặt tàu" / "Player 2 - Đặt tàu"
+    public TextMeshProUGUI instructionText;
 
     [Header("Pass & Play UI (chỉ hiện khi PlayWithFriend)")]
     public GameObject passDevicePanel;    // Panel "Hãy đưa màn hình cho Player 2"
@@ -58,6 +60,7 @@ public class SetupSceneManager : MonoBehaviour
         // Gán nút
         if (confirmButton != null) confirmButton.onClick.AddListener(OnConfirm);
         if (resetButton != null) resetButton.onClick.AddListener(OnReset);
+        if (randomButton != null) randomButton.onClick.AddListener(OnRandomPlaceShips);
 
         if (passDevicePanel != null) passDevicePanel.SetActive(false);
         if (passDeviceReadyButton != null) passDeviceReadyButton.onClick.AddListener(OnPassDeviceReady);
@@ -70,6 +73,8 @@ public class SetupSceneManager : MonoBehaviour
         if (titleText != null)
             titleText.text = $"Player {currentPlayer}";
 
+        if (instructionText != null)
+            instructionText.text = "Drag and rotate your ships to place them on the grid. The ship will turn green if the position is valid.";
     }
 
     // ── Ship Placement Callback (gọi từ ShipPlacement.cs) ────
@@ -132,6 +137,80 @@ public class SetupSceneManager : MonoBehaviour
         }
 
         Debug.Log($"[SetupSceneManager] Player {currentPlayer} reset.");
+    }
+
+    /// <summary>
+    /// Nút "Random" — đặt tất cả tàu vào vị trí hợp lệ ngẫu nhiên.
+    /// </summary>
+    public void OnRandomPlaceShips()
+    {
+        if (shipPlacements == null || shipPlacements.Length == 0 || playerGrid == null)
+        {
+            Debug.LogWarning("[SetupSceneManager] Missing shipPlacements or playerGrid.");
+            return;
+        }
+
+        OnReset();
+
+        bool placedAll = TryRandomPlaceAllShips();
+        if (!placedAll)
+        {
+            // Thử lại một lần từ đầu để giảm xác suất fail do thứ tự random
+            OnReset();
+            placedAll = TryRandomPlaceAllShips();
+        }
+
+        if (!placedAll)
+        {
+            Debug.LogWarning("[SetupSceneManager] Could not random place all ships.");
+        }
+    }
+
+    private bool TryRandomPlaceAllShips()
+    {
+        List<ShipPlacement> toPlace = new List<ShipPlacement>();
+        foreach (var sp in shipPlacements)
+        {
+            if (sp != null && sp.ship != null)
+                toPlace.Add(sp);
+        }
+
+        Shuffle(toPlace);
+
+        foreach (var sp in toPlace)
+        {
+            if (!TryRandomPlaceShip(sp))
+                return false;
+        }
+
+        return true;
+    }
+
+    private bool TryRandomPlaceShip(ShipPlacement shipPlacement)
+    {
+        const int maxAttempts = 400;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            bool horizontal = UnityEngine.Random.value > 0.5f;
+            int x = UnityEngine.Random.Range(0, playerGrid.gridWidth);
+            int y = UnityEngine.Random.Range(0, playerGrid.gridHeight);
+            Vector2Int origin = new Vector2Int(x, y);
+
+            if (shipPlacement.TryPlaceAt(origin, horizontal))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void Shuffle<T>(IList<T> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
     }
 
     // ── Flow Control ──────────────────────────────────────────

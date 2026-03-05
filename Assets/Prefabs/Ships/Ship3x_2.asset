@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   shipName: Submarine
   shipID: 0
-  shipPrefab: {fileID: 0}
+  shipPrefab: {fileID: 7399049178907842148, guid: 453980f26b9a82d4f92855ba0ef0d687, type: 3}
   size: {x: 3, y: 1}
