@@ -15,7 +15,7 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Player đang trong quá trình Setup (1 hoặc 2).
-    /// SetupSceneManager đọc giá trị này để biết đang setup cho ai.
+    /// SetupSceneUIManager đọc giá trị này để biết đang setup cho ai.
     /// </summary>
     public int currentSetupPlayer { get; private set; } = 1;
 

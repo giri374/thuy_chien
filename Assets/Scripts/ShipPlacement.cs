@@ -27,7 +27,7 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
     // ── Lifecycle ─────────────────────────────────────────────
 
-    private void Start()
+    private void Start ()
     {
         mainCamera = Camera.main;
         gridManager = FindObjectOfType<GridManager>();
@@ -36,17 +36,24 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         originalPosition = transform.position;
 
         if (spriteRenderer != null)
+        {
             originalColor = spriteRenderer.color;
+        }
 
         if (gridManager == null)
+        {
             Debug.LogError("ShipPlacement: GridManager not found!");
+        }
     }
 
     // ── Click để xoay ─────────────────────────────────────────
 
-    public void OnPointerClick(PointerEventData eventData)
+    public void OnPointerClick (PointerEventData eventData)
     {
-        if (isDragging) return;
+        if (isDragging)
+        {
+            return;
+        }
 
         ship?.Rotate();
 
@@ -59,34 +66,41 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
     // ── Drag ──────────────────────────────────────────────────
 
-    public void OnBeginDrag(PointerEventData eventData)
+    public void OnBeginDrag (PointerEventData eventData)
     {
         isDragging = true;
 
         if (!isPlaced)
+        {
             originalPosition = transform.position;
+        }
 
         if (isPlaced)
+        {
             RemoveShipFromGrid();
+        }
     }
 
-    public void OnDrag(PointerEventData eventData)
+    public void OnDrag (PointerEventData eventData)
     {
-        if (!isDragging) return;
+        if (!isDragging)
+        {
+            return;
+        }
 
-        Vector2Int snapPos = GetSnapPosition(eventData.position);
+        var snapPos = GetSnapPosition(eventData.position);
         currentSnapPos = snapPos;
 
         SnapShipToGrid(snapPos);
         UpdatePreviewColor(snapPos);
     }
 
-    public void OnEndDrag(PointerEventData eventData)
+    public void OnEndDrag (PointerEventData eventData)
     {
         isDragging = false;
         ResetColor();
 
-        bool success = TryPlaceAtCurrentSnap();
+        var success = TryPlaceAtCurrentSnap();
 
         if (!success)
         {
@@ -97,41 +111,53 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
     // ── Helpers ───────────────────────────────────────────────
 
-    private Vector2Int GetSnapPosition(Vector2 screenPos)
+    private Vector2Int GetSnapPosition (Vector2 screenPos)
     {
-        Vector3 worldPos = mainCamera.ScreenToWorldPoint(screenPos);
+        var worldPos = mainCamera.ScreenToWorldPoint(screenPos);
         worldPos.z = 0f;
 
-        Vector3Int cellPos = gridManager.grid.WorldToCell(worldPos);
+        var cellPos = gridManager.grid.WorldToCell(worldPos);
         return new Vector2Int(cellPos.x, cellPos.y);
     }
 
-    private void SnapShipToGrid(Vector2Int snapPos)
+    private void SnapShipToGrid (Vector2Int snapPos)
     {
-        if (gridManager == null) return;
+        if (gridManager == null)
+        {
+            return;
+        }
 
-        Vector3 snappedWorld = gridManager.grid.CellToWorld(new Vector3Int(snapPos.x, snapPos.y, 0));
+        var snappedWorld = gridManager.grid.CellToWorld(new Vector3Int(snapPos.x, snapPos.y, 0));
         snappedWorld.z = 0f;
 
         if (ship != null && !ship.isHorizontal)
+        {
             snappedWorld.x += gridManager.grid.cellSize.x;
+        }
 
         transform.position = snappedWorld;
     }
 
-    private bool TryPlaceAtCurrentSnap()
+    private bool TryPlaceAtCurrentSnap ()
     {
-        if (gridManager == null) return false;
-        if (!gridManager.CanPlaceShip(ship, currentSnapPos)) return false;
+        if (gridManager == null)
+        {
+            return false;
+        }
 
-        bool success = gridManager.PlaceShip(ship, currentSnapPos);
+        if (!gridManager.CanPlaceShip(ship, currentSnapPos))
+        {
+            return false;
+        }
+
+        var success = gridManager.PlaceShip(ship, currentSnapPos);
 
         if (success)
         {
             isPlaced = true;
 
-            // ── Lưu vào GameManager (thay thế SetupSceneManager.Instance cũ) ──
-            SetupSceneManager.Instance?.SaveShipPlacement(ship);
+            // ── Lưu vào GameManager (thay thế SetupSceneUIManager.Instance cũ) ──
+            SetupSceneLogic.Instance?.SaveShipPlacement(ship);
 
             Debug.Log($"Ship placed at {currentSnapPos}");
         }
@@ -139,26 +165,36 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         return success;
     }
 
-    private void UpdatePreviewColor(Vector2Int snapPos)
+    private void UpdatePreviewColor (Vector2Int snapPos)
     {
-        if (spriteRenderer == null) return;
+        if (spriteRenderer == null)
+        {
+            return;
+        }
 
-        bool canPlace = gridManager != null && gridManager.CanPlaceShip(ship, snapPos);
+        var canPlace = gridManager != null && gridManager.CanPlaceShip(ship, snapPos);
         spriteRenderer.color = canPlace ? validColor : invalidColor;
     }
 
-    private void ResetColor()
+    private void ResetColor ()
     {
         if (spriteRenderer != null)
+        {
             spriteRenderer.color = originalColor;
+        }
     }
 
-    private void RemoveShipFromGrid()
+    private void RemoveShipFromGrid ()
     {
-        if (ship?.occupiedCells == null) return;
+        if (ship?.occupiedCells == null)
+        {
+            return;
+        }
 
-        foreach (Cell cell in ship.occupiedCells)
+        foreach (var cell in ship.occupiedCells)
+        {
             cell?.SetOccupyingShip(null);
+        }
 
         ship.occupiedCells.Clear();
         gridManager?.ships.Remove(ship);
@@ -167,41 +203,53 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     }
 
     /// <summary>
-    /// Gọi từ SetupSceneManager.OnReset() — tháo khỏi lưới,
+    /// Gọi từ SetupSceneUIManager.OnReset() — tháo khỏi lưới,
     /// trả tàu về vị trí ban đầu và reset rotation về ngang.
     /// </summary>
-    public void ResetToOrigin()
+    public void ResetToOrigin ()
     {
         if (isPlaced)
+        {
             RemoveShipFromGrid();
+        }
 
         // Reset rotation về ngang nếu đang dọc
         if (ship != null && !ship.isHorizontal)
+        {
             ship.Rotate();
+        }
 
         transform.position = originalPosition;
         ResetColor();
     }
 
     /// <summary>
-    /// Dùng cho auto/random placement từ SetupSceneManager.
+    /// Dùng cho auto/random placement từ SetupSceneUIManager.
     /// </summary>
-    public bool TryPlaceAt(Vector2Int origin, bool horizontal)
+    public bool TryPlaceAt (Vector2Int origin, bool horizontal)
     {
         if (gridManager == null || ship == null)
+        {
             return false;
+        }
 
         if (isPlaced)
+        {
             RemoveShipFromGrid();
+        }
 
         // Đảm bảo hướng khớp trước khi check vị trí hợp lệ
         if (ship.isHorizontal != horizontal)
+        {
             ship.Rotate();
+        }
 
         currentSnapPos = origin;
-        bool success = TryPlaceAtCurrentSnap();
+        var success = TryPlaceAtCurrentSnap();
         if (!success)
+        {
             transform.position = originalPosition;
+        }
 
         return success;
     }

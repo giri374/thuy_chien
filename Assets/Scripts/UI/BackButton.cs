@@ -8,21 +8,11 @@ using UnityEngine.UI;
 public class BackToMenuHandler : MonoBehaviour
 {
     public Button backButton;
-    public GameObject confirmPanel;
-    public Button confirmBackButton;
     private void Start()
     {
-        if (backButton != null)
-            backButton.onClick.AddListener(ShowConfirmPanel);
-        if (confirmBackButton != null)
-            confirmBackButton.onClick.AddListener(BackToMenu);
+        backButton.onClick.AddListener(BackToMenu);
     }
 
-    public void ShowConfirmPanel()
-    {
-        if (confirmPanel != null)
-            confirmPanel.SetActive(true);
-    }
     public void BackToMenu()
     {
         // Xóa tất cả dữ liệu placement
@@ -33,7 +23,7 @@ public class BackToMenuHandler : MonoBehaviour
         GameManager.Instance.SetCurrentSetupPlayer(1);
 
         // Load MenuScene
-        UnityEngine.SceneManagement.SceneManager.LoadScene("MenuScene");
+        UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.MainMenu);
         Debug.Log(" Returning to MenuScene...");
     }
 }

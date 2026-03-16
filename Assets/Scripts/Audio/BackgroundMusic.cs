@@ -10,9 +10,7 @@ public class BackgroundMusic : MonoBehaviour
         AudioManager.Instance.PlayAudio(musicName);
     }
 
-    // Update is called once per frame
     void Update()
     {
-
     }
 }

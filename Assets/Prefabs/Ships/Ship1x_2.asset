@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Ship1x_2
   m_EditorClassIdentifier: 
   shipName: Corvette
-  shipID: 0
+  shipID: 2
   shipPrefab: {fileID: 3577107593949406758, guid: 957ab11310d025f459f7935bd09ad578, type: 3}
   size: {x: 1, y: 1}

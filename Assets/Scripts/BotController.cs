@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class BotController : MonoBehaviour
 {
@@ -14,14 +14,14 @@ public class BotController : MonoBehaviour
     // ── AI State ─────────────────────────────────────────────
 
     // Danh sách các ô tiềm năng cần bắn (chế độ Target)
-    private List<Vector2Int> _potentialTargets = new List<Vector2Int>();
+    private readonly List<Vector2Int> _potentialTargets = new List<Vector2Int>();
 
     // ── Public API ───────────────────────────────────────────
 
     /// <summary>
     /// Đặt tàu ngẫu nhiên cho bot
     /// </summary>
-    public void PlaceShipsRandomly()
+    public void PlaceShipsRandomly ()
     {
         if (myGrid == null || shipListData == null)
         {
@@ -32,26 +32,26 @@ public class BotController : MonoBehaviour
         // Reset grid trước khi đặt
         myGrid.ResetGrid(); // Đảm bảo lưới trống
 
-        int maxAttempts = 100;
+        var maxAttempts = 100;
 
-        foreach (ShipData data in shipListData.ships)
+        foreach (var data in shipListData.ships)
         {
-            bool placed = false;
-            int attempts = 0;
+            var isplaced = false;
+            var attempts = 0;
 
-            while (!placed && attempts < maxAttempts)
+            while (!isplaced && attempts < maxAttempts)
             {
                 attempts++;
 
                 // Random hướng và vị trí
-                bool horizontal = Random.value > 0.5f;
-                int x = Random.Range(0, myGrid.gridWidth);
-                int y = Random.Range(0, myGrid.gridHeight);
-                Vector2Int pos = new Vector2Int(x, y);
+                var horizontal = Random.value > 0.5f;
+                var x = Random.Range(0, myGrid.gridWidth);
+                var y = Random.Range(0, myGrid.gridHeight);
+                var pos = new Vector2Int(x, y);
 
                 // Tạo object tàu tạm
-                GameObject obj = Instantiate(data.shipPrefab, myGrid.transform);
-                Ship ship = obj.GetComponent<Ship>();
+                var obj = Instantiate(data.shipPrefab, myGrid.transform);
+                var ship = obj.GetComponent<Ship>();
 
                 if (ship == null)
                 {
@@ -61,7 +61,10 @@ public class BotController : MonoBehaviour
 
                 // Setup tàu
                 ship.Initialize(data);
-                if (!horizontal) ship.Rotate();
+                if (!horizontal)
+                {
+                    ship.Rotate();
+                }
 
                 // Thử đặt vào grid
                 if (myGrid.PlaceShip(ship, pos))
@@ -70,12 +73,17 @@ public class BotController : MonoBehaviour
 
                     // Disable interaction for enemy ships so they don't block clicks on the grid
                     var collider = ship.GetComponent<Collider2D>();
-                    if (collider != null) collider.enabled = false;
+                    if (collider != null)
+                    {
+                        collider.enabled = false;
+                    }
 
-                    var placementScript = ship.GetComponent<ShipPlacement>();
-                    if (placementScript != null) Destroy(placementScript);
+                    if (ship.TryGetComponent<ShipPlacement>(out var placementScript))
+                    {
+                        Destroy(placementScript);
+                    }
 
-                    placed = true;
+                    isplaced = true;
                 }
                 else
                 {
@@ -84,7 +92,7 @@ public class BotController : MonoBehaviour
                 }
             }
 
-            if (!placed)
+            if (!isplaced)
             {
                 Debug.LogWarning($"BotController: Could not place {data.shipName} after {maxAttempts} attempts.");
             }
@@ -94,14 +102,14 @@ public class BotController : MonoBehaviour
     /// <summary>
     /// Thực hiện lượt bắn của bot
     /// </summary>
-    public void MakeTurn()
+    public void MakeTurn ()
     {
         StartCoroutine(ProcessTurn());
     }
 
     // ── Logic ───────────────────────────────────────────────
 
-    private System.Collections.IEnumerator ProcessTurn()
+    private System.Collections.IEnumerator ProcessTurn ()
     {
         // Delay action để người chơi kịp nhìn
         yield return new WaitForSeconds(delayBetweenMoves);
@@ -112,7 +120,7 @@ public class BotController : MonoBehaviour
         if (_potentialTargets.Count > 0)
         {
             // Lấy goal cuối cùng (stack behavior)
-            int index = _potentialTargets.Count - 1;
+            var index = _potentialTargets.Count - 1;
             targetPos = _potentialTargets[index];
             _potentialTargets.RemoveAt(index);
         }
@@ -123,7 +131,7 @@ public class BotController : MonoBehaviour
         }
 
         // Kiểm tra tính hợp lệ (tránh bắn lại ô cũ)
-        Cell cell = targetGrid.GetCell(targetPos);
+        var cell = targetGrid.GetCell(targetPos);
 
         // Nếu ô này đã bắn rồi (không còn Unknown), thử lại ngay trong frame này (hoặc đệ quy)
         // Tuy nhiên để an toàn, ta lặp tìm ô hợp lệ nếu đang ở chế độ Random
@@ -145,7 +153,7 @@ public class BotController : MonoBehaviour
         }
 
         // Tấn công
-        bool hit = targetGrid.AttackCell(targetPos);
+        var hit = targetGrid.AttackCell(targetPos);
         Debug.Log($"Bot attacks {targetPos}: {(hit ? "HIT" : "MISS")}");
 
         // Nếu bắn trúng, thêm các ô xung quanh vào danh sách tiềm năng
@@ -156,34 +164,34 @@ public class BotController : MonoBehaviour
             // Bot được bắn tiếp nếu trúng? 
             // Tùy luật game. Nếu luật là "trúng được bắn tiếp", gọi MakeTurn() tiếp.
             // Nếu luật là lượt đổi, thì thôi.
-            // BattleSceneManager đang xử lý logic lượt, ở đây ta chỉ bắn 1 phát rồi callback?
-            // Hiện tại BattleSceneManager gọi EnemyTurn -> bắn 1 phát -> check sunk -> nếu hit thì gọi EnemyTurn tiếp.
+            // BattleSceneLogic đang xử lý logic lượt, ở đây ta chỉ bắn 1 phát rồi callback?
+            // Hiện tại BattleSceneLogic gọi EnemyTurn -> bắn 1 phát -> check sunk -> nếu hit thì gọi EnemyTurn tiếp.
             // Nên ta chỉ cần thực hiện 1 cú bắn và Logic game loop sẽ lo phần còn lại.
 
-            // Update: BattleSceneManager sẽ kiểm tra kết quả attack.
+            // Update: BattleSceneLogic sẽ kiểm tra kết quả attack.
         }
 
-        // Báo cho BattleSceneManager biết bot đã bắn xong?
-        // Hiện tại BattleSceneManager gọi EnemyTurn và không chờ return.
+        // Báo cho BattleSceneLogic biết bot đã bắn xong?
+        // Hiện tại BattleSceneLogic gọi EnemyTurn và không chờ return.
         // Nhưng GridManager.AttackCell đã kích hoạt event/log state.
 
-        // Cần gọi callback để BattleSceneManager xử lý tiếp (CheckSunk, SwitchTurn...)
-        // Vì logic game loop đang nằm cứng trong BattleSceneManager, ta cần call ngược lại
-        // hoặc BattleSceneManager quan sát Grid.
+        // Cần gọi callback để BattleSceneLogic xử lý tiếp (CheckSunk, SwitchTurn...)
+        // Vì logic game loop đang nằm cứng trong BattleSceneLogic, ta cần call ngược lại
+        // hoặc BattleSceneLogic quan sát Grid.
 
-        // Cách tốt nhất: BotController bắn xong -> BattleSceneManager kiểm tra kết quả.
+        // Cách tốt nhất: BotController bắn xong -> BattleSceneLogic kiểm tra kết quả.
         // Nhưng BotController chạy Coroutine (async).
         // => Cần event hoặc callback.
 
-        BattleSceneManager.Instance.OnBotFinishedTurn(hit);
+        BattleSceneLogic.Instance.OnBotFinishedTurn(hit);
     }
 
-    private Vector2Int GetRandomCell()
+    private Vector2Int GetRandomCell ()
     {
         // Random cơ bản
         // Có thể tối ưu bằng cách lưu list các ô Unknown để không phải random lại nhiều lần
         int x, y;
-        int maxTries = 100;
+        var maxTries = 100;
         do
         {
             x = Random.Range(0, targetGrid.gridWidth);
@@ -195,7 +203,7 @@ public class BotController : MonoBehaviour
         return new Vector2Int(x, y);
     }
 
-    private void AddNeighborsToTargets(Vector2Int pos)
+    private void AddNeighborsToTargets (Vector2Int pos)
     {
         Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
 
@@ -204,8 +212,8 @@ public class BotController : MonoBehaviour
 
         foreach (var dir in dirs)
         {
-            Vector2Int checkPos = pos + dir;
-            Cell cell = targetGrid.GetCell(checkPos);
+            var checkPos = pos + dir;
+            var cell = targetGrid.GetCell(checkPos);
 
             if (cell != null && cell.cellState == CellState.Unknown)
             {
@@ -218,14 +226,12 @@ public class BotController : MonoBehaviour
         }
     }
 
-    private void Shuffle<T>(T[] array)
+    private void Shuffle<T> (T[] array)
     {
-        for (int i = 0; i < array.Length; i++)
+        for (var i = 0; i < array.Length; i++)
         {
-            int rnd = Random.Range(0, array.Length);
-            T temp = array[i];
-            array[i] = array[rnd];
-            array[rnd] = temp;
+            var rnd = Random.Range(0, array.Length);
+            (array[rnd], array[i]) = (array[i], array[rnd]);
         }
     }
 }

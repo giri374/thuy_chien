@@ -1,133 +1,178 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditor;
-using UnityEngine;
-
 namespace AudioSystem
 {
+    using System.Collections;
+    using System.Collections.Generic;
+    using UnityEngine;
+    using UnityEngine.Pool;
 
     public class AudioManager : MonoBehaviour
     {
-        #region Singleton
-        private static AudioManager _instance;
-        public static AudioManager Instance { get { return _instance; } }
-        private void Awake()
+        public static AudioManager Instance;
+
+        [Header("Data & Pool Settings")]
+        [SerializeField] private AudioScriptableObject audioData;
+        [SerializeField] private int defaultCapacity = 10;
+        [SerializeField] private int maxPoolSize = 20;
+
+        [Header("Audio Settings")]
+        public bool isMusicOn = true;
+        public bool isSfxOn = true;
+
+        private IObjectPool<AudioSource> sfxPool;
+        private AudioSource musicSource;
+        private Audio currentMusicData;
+        private readonly List<AudioSource> activeSfxSources = new List<AudioSource>(); // Theo dõi các SFX đang chạy
+
+        private void Awake ()
         {
-            if (_instance == null)
+            if (Instance == null)
             {
-                _instance = this;
-                if (DontDestroy)
-                {
-                    DontDestroyOnLoad(gameObject);
-                }
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
             }
             else
             {
                 Destroy(gameObject);
                 return;
             }
-            SetObjects();
-            CreatePool(true);
+
+            sfxPool = new ObjectPool<AudioSource>(
+                CreateAudioSource, OnGetFromPool, OnReleaseToPool, OnDestroyPooledObject,
+                true, defaultCapacity, maxPoolSize
+            );
+
+            musicSource = gameObject.AddComponent<AudioSource>();
         }
+
+        #region Pool Handlers
+        private AudioSource CreateAudioSource ()
+        {
+            var go = new GameObject("Pooled_SFX");
+            // QUAN TRỌNG: Gắn nó vào Manager để nó không bị xóa khi đổi Scene
+            go.transform.SetParent(this.transform);
+            return go.AddComponent<AudioSource>();
+        }
+        private void OnGetFromPool (AudioSource source) => source.gameObject.SetActive(true);
+
+        private void OnReleaseToPool (AudioSource source) => source.gameObject.SetActive(false);
+        private void OnDestroyPooledObject (AudioSource source) => Destroy(source.gameObject);
         #endregion
 
-        [SerializeField] private AudioScriptableObject AudioListObject;
-        private List<Audio> AudioList;
-        public int PoolSize = 5;
-        public bool DontDestroy;
-        [SerializeField] private GameObject AudioPlayer;
+        #region Settings Methods
 
-
-        private void SetObjects()
+        public void SetSfx (bool isOn)
         {
-            if (AudioListObject != null)
+            isSfxOn = isOn;
+            if (!isSfxOn)
             {
-                AudioList = AudioListObject.Audios;
-            }
-            else
-            {
-                Debug.LogError("AudioListObject not assigned in Inspector!");
+                // Ngắt toàn bộ SFX đang phát khi tắt
+                foreach (var source in activeSfxSources.ToArray())
+                {
+                    if (source.gameObject.activeInHierarchy)
+                    {
+                        source.Stop();
+                        sfxPool.Release(source);
+                    }
+                }
+                activeSfxSources.Clear();
             }
         }
 
-
-        private void CreatePool(bool isInitial = false)
+        public void SetMusic (bool isOn)
         {
-            if (isInitial)
+            isMusicOn = isOn;
+            if (isMusicOn)
             {
-                for (int i = 0; i < PoolSize; i++)
+                // Nếu có bài nhạc đã được load trước đó và đang im lặng -> Phát ngay
+                if (currentMusicData != null && !musicSource.isPlaying)
                 {
-                    Instantiate(AudioPlayer, transform);
+                    musicSource.Play();
                 }
             }
             else
             {
-                Instantiate(AudioPlayer, transform);
+                musicSource.Stop();
             }
         }
 
+        #endregion
 
-        //helper
-        private AudioSource UseFromPool()
+        public void PlayAudio (string audioName)
         {
-            for (int i = 0; i < transform.childCount; i++)
+            var s = audioData.Audios.Find(a => a.name == audioName);
+            if (s == null)
             {
-                if (!transform.GetChild(i).GetComponent<AudioSource>().isPlaying)
-                {
-                    return transform.GetChild(i).GetComponent<AudioSource>();
-                }
-            }
-            CreatePool();
-            return transform.GetChild(transform.childCount - 1).GetComponent<AudioSource>();
-        }
-
-
-        #region Play Audio
-        private Audio GetAudio(string audioName)
-        {
-            if (PoolSize == 0)
-            {
-                CreatePool();
-            }
-            for (int i = 0; i < AudioList.Count; i++)
-            {
-                if (audioName == AudioList[i].name)
-                {
-                    return AudioList[i];
-                }
-            }
-            return null;
-        }
-
-        public void PlayAudio(string audioName, int volume = 1, int pitch = 1, bool loop = false)
-        {
-            Audio audio = GetAudio(audioName);
-            if (audio == null)
-            {
-                Debug.LogError($"Audio '{audioName}' not found!");
                 return;
             }
 
-            AudioSource audioSource = UseFromPool();
-            audioSource.clip = audio.audioClip;
-            audioSource.volume = audio.volume;
-            audioSource.pitch = audio.pitch;
-            audioSource.loop = audio.isLoop;
+            if (s.isMusic)
+            {
+                currentMusicData = s; // Ghi nhớ bài nhạc muốn phát
+                SetupSource(musicSource, s); // Luôn load clip vào source
 
-            audioSource.Play();
+                if (isMusicOn)
+                {
+                    musicSource.Play();
+                }
+                else
+                {
+                    musicSource.Stop();
+                }
+            }
+            else
+            {
+                if (!isSfxOn)
+                {
+                    return;
+                }
+
+                var source = sfxPool.Get();
+                SetupSource(source, s);
+                source.Play();
+
+                activeSfxSources.Add(source);
+                StartCoroutine(ReturnToPoolAfterFinished(source));
+            }
         }
-        #endregion
 
-
-        private void Update()
+        private void SetupSource (AudioSource source, Audio data)
         {
+            source.clip = data.audioClip;
+            source.volume = data.volume;
+            source.pitch = data.pitch;
+            source.loop = data.isLoop;
+        }
 
+        private IEnumerator ReturnToPoolAfterFinished (AudioSource source)
+        {
+            // Tính toán thời gian dựa trên clip và pitch
+            var duration = (source.clip != null) ? source.clip.length / Mathf.Abs(source.pitch) : 0f;
+            yield return new WaitForSeconds(duration);
+
+            // Kiểm tra source có bị Destroy bởi Unity khi chuyển Scene hay không
+            if (source != null && source.gameObject != null)
+            {
+                if (activeSfxSources.Contains(source))
+                {
+                    activeSfxSources.Remove(source);
+                }
+
+                // Chỉ trả về pool nếu object vẫn còn đang hoạt động
+                if (source.gameObject.activeInHierarchy)
+                {
+                    sfxPool.Release(source);
+                }
+            }
         }
 
 
-
+        private void OnDisable ()
+        {
+            // Ngắt toàn bộ các hàm đang đợi trả về Pool để tránh MissingReference
+            StopAllCoroutines();
+            activeSfxSources.Clear();
+        }
     }
-
 }
 
 

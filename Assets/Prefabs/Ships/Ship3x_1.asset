@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Ship3x_1
   m_EditorClassIdentifier: 
   shipName: Battleship
-  shipID: 2
+  shipID: 5
   shipPrefab: {fileID: 893605069270795448, guid: eddb7d67ac637b344805f1e78f6f350b, type: 3}
   size: {x: 3, y: 1}

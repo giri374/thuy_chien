@@ -77,7 +77,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 1
   m_Sprite: {fileID: 21300000, guid: fb4723a5eb1704449a77952823093dfa, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -110,6 +110,7 @@ MonoBehaviour:
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   emptySprite: {fileID: 21300000, guid: 22b731fe84e9b804fa88d23ee1ec2b07, type: 3}
   hitSprite: {fileID: 21300000, guid: c7f1717ed89d3634fad013c75e8b9ef8, type: 3}
+  previewSprite: {fileID: 21300000, guid: fb4723a5eb1704449a77952823093dfa, type: 3}
   hitAnimationPrefab: {fileID: 4660781819245787392, guid: e1b7f844de4135647b1ab24b04a7bc65, type: 3}
   missAnimationPrefab: {fileID: 7447706882383800204, guid: d1e9a78d53fcc784894dc346eb5c8e7a, type: 3}
   occupyingShip: {fileID: 0}

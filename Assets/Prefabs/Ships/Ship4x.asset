@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Ship4x
   m_EditorClassIdentifier: 
   shipName: Carrier
-  shipID: 1
+  shipID: 7
   shipPrefab: {fileID: 8023845704119132822, guid: b47f53a03631e8f4383e383d675fb520, type: 3}
   size: {x: 4, y: 1}

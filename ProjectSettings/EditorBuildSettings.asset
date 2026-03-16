@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Commons/DontDestroyOnLoadGameObjectHandlers/Initialization/DontDestroyOnLoadGameObjectInitialization.unity
+    guid: d30c00ee5c6e9c741ae55fa93624677b
+  - enabled: 1
     path: Assets/Scenes/MenuScene.unity
     guid: f05335b0d9e0aa445acc8d123bf552d8
   - enabled: 1

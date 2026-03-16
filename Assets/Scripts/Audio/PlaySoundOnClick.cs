@@ -1,34 +1,44 @@
-
+using AudioSystem;
+using DG.Tweening; // Thêm thư viện DOTween
 using UnityEngine;
 using UnityEngine.UI;
-using AudioSystem;
 
 public class PlaySoundOnClick : MonoBehaviour
 {
+    [Header("Settings")]
+    public float scaleTo = 0.9f;     // Tỉ lệ thu nhỏ
+    public float duration = 0.1f;    // Thời gian hiệu ứng
 
-    void Start()
+    private void Start ()
     {
-        // Tìm tất cả Button hiện có trong Scene
-        Button[] allButtons = FindObjectsOfType<Button>();
-        Debug.Log($"Found {allButtons.Length} buttons");
+        var allButtons = FindObjectsOfType<Button>();
 
-        foreach (Button btn in allButtons)
+        foreach (var btn in allButtons)
         {
-            // Thêm sự kiện phát âm thanh khi Click
-            btn.onClick.AddListener(() => PlaySound());
+            // Lưu lại scale ban đầu để đảm bảo nút quay về đúng cỡ
+            var originalScale = btn.transform.localScale;
+
+            btn.onClick.AddListener(() =>
+            {
+                PlaySound();
+                PlayClickEffect(btn.transform, originalScale);
+            });
         }
     }
 
-    void PlaySound()
+    private void PlayClickEffect (Transform target, Vector3 originalScale)
     {
-        Debug.Log("PlaySound called");
+        // Hiệu ứng: Thu nhỏ lại rồi phóng lớn về ban đầu (Yoyo)
+        target.DOScale(originalScale * scaleTo, duration)
+              .SetEase(Ease.OutQuad)
+              .SetLoops(2, LoopType.Yoyo);
+    }
+
+    private void PlaySound ()
+    {
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlayAudio("Click");
-        }
-        else
-        {
-            Debug.LogError("AudioManager.Instance is null!");
         }
     }
 }
