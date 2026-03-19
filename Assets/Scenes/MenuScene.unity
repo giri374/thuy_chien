@@ -1090,6 +1090,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   shipListData: {fileID: 11400000, guid: 180521354f585f145a4dc8d9c63ce0dc, type: 2}
+  weaponListData: {fileID: 11400000, guid: 332c350448df2614e89beaee1907f122, type: 2}
 --- !u!4 &1037002448
 Transform:
   m_ObjectHideFlags: 0

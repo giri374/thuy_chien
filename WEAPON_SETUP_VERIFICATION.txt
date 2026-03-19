@@ -1,0 +1,274 @@
+/**
+ * WEAPON SETUP SCENE - QUICK VERIFICATION
+ * 
+ * This file lists all created/modified files and their key components.
+ * Use this to verify all pieces are in place before running the game.
+ */
+
+// ============================================================================
+// ✅ FILE 1: Assets/Data/WeaponListData.cs
+// ============================================================================
+// Purpose: ScriptableObject to hold list of all weapons
+// Key Contents:
+//  - CreateAssetMenu attribute for easy creation
+//  - List<WeaponData> weapons
+//  - GetWeaponByType(WeaponType type)
+//  - GetWeaponByName(string name)
+// Status: ✅ CREATED
+
+// ============================================================================
+// ✅ FILE 2: Assets/Scripts/GameManager.cs (MODIFIED)
+// ============================================================================
+// Changes Made:
+//  - Added: public WeaponListData weaponListData;
+//  - Added: static List<WeaponType> player1SelectedWeapons
+//  - Added: static List<WeaponType> player2SelectedWeapons
+//  - Added: static int player1Gold
+//  - Added: static int player2Gold
+//  - Added: SetPlayerGold(int playerIndex, int goldAmount)
+//  - Added: GetPlayerGold(int playerIndex)
+//  - Added: AddWeapon(int playerIndex, WeaponType weaponType)
+//  - Added: RemoveWeapon(int playerIndex, WeaponType weaponType)
+//  - Added: GetSelectedWeapons(int playerIndex)
+//  - Added: ClearWeapons(int playerIndex)
+//  - Added: ClearAllWeapons()
+// Status: ✅ MODIFIED
+
+// ============================================================================
+// ✅ FILE 3: Assets/Scripts/WeaponSetupUIManager.cs
+// ============================================================================
+// Purpose: Main UI manager for WeaponSetupScene
+// Key Methods:
+//  - Start(): Initializes scene setup
+//  - LoadWeaponSetupData(): Loads gold from ProgressManager
+//  - CreateWeaponButtons(): Dynamically creates weapon buttons
+//  - OnWeaponSelected(WeaponData weapon): Handles weapon selection
+//  - RefreshWeaponButtons(): Updates button states
+//  - OnConfirmClicked(): Transition to next scene
+//  - OnCancelClicked(): Return to MainMenu
+// Dependencies:
+//  - GameManager.Instance
+//  - ProgressManager.Instance
+//  - WeaponListData
+//  - SceneNames
+// Status: ✅ CREATED
+
+// ============================================================================
+// ✅ FILE 4: Assets/Scripts/WeaponButton.cs
+// ============================================================================
+// Purpose: Individual weapon button UI component
+// Key Methods:
+//  - Setup(WeaponData weapon, int gold, Action<WeaponData> onSelected)
+//  - UpdateUI(): Refresh UI based on weapon data
+//  - UpdateAvailability(int gold): Enable/disable button
+//  - OnButtonClicked(): Handle button click
+// Status: ✅ CREATED
+
+// ============================================================================
+// 📋 REQUIRED INSPECTOR ASSIGNMENTS
+// ============================================================================
+
+/*
+GAMEMANAGER (in MenuScene hierarchy):
+┌─ Inspector
+│  ├─ [Weapon Data]
+│  │  └─ Weapon List Data = WeaponList (ScriptableObject)
+│  └─ [Ship Data]
+│     └─ (already assigned)
+*/
+
+/*
+WEAPONSETUPUIMANAGER (in WeaponSetupScene hierarchy):
+┌─ WeaponSetupUIManager (MonoBehaviour)
+│  ├─ Player Title Text = PlayerTitleText (TextMeshProUGUI)
+│  ├─ Current Gold Text = CurrentGoldText (TextMeshProUGUI)
+│  ├─ Weapon Button Container = ScrollView > Content (Transform)
+│  ├─ Confirm Button = ConfirmButton
+│  ├─ Cancel Button = CancelButton (Button)
+│  └─ Weapon Button Prefab = WeaponButton (prefab)
+*/
+
+/*
+WEAPONBUTTON PREFAB (Assets/Prefabs/WeaponButton.prefab):
+┌─ WeaponButton (Button)
+│  ├─ Weapon Icon Image = Image component
+│  ├─ Weapon Name Text = WeaponNameText (TextMeshProUGUI)
+│  ├─ Gold Cost Text = GoldCostText (TextMeshProUGUI)
+│  ├─ Description Text = DescriptionText (TextMeshProUGUI)
+│  └─ Select Button = Button component (self reference)
+*/
+
+// ============================================================================
+// 🔄 SCENE FLOW VERIFICATION
+// ============================================================================
+
+/*
+NormalMap Flow (✅ Already working):
+┌─ MenuScene (GoBattle() for NormalMap)
+│  └─ SceneManager.LoadScene(SceneNames.Setup)
+└─ SetupScene → BattleScene
+
+AdvancedMap Flow (✅ NEW with WeaponSetupScene):
+┌─ MenuScene (GoBattle() for AdvancedMap)
+│  └─ SceneManager.LoadScene(SceneNames.WeaponSetup)
+├─ WeaponSetupScene (Player 1)
+│  └─ OnConfirmClicked()
+│     ├─ If PlayWithFriend && Player 1:
+│     │  ├─ GameManager.SetCurrentSetupPlayer(2)
+│     │  └─ SceneManager.LoadScene(SceneNames.WeaponSetup)
+│     │
+│     └─ Else:
+│        └─ SceneManager.LoadScene(SceneNames.Setup)
+│
+├─ [If PlayWithFriend] WeaponSetupScene (Player 2)
+│  └─ OnConfirmClicked()
+│     └─ SceneManager.LoadScene(SceneNames.Setup)
+│
+├─ SetupScene (Player placement logic)
+│  └─ OnConfirmClicked()
+│     ├─ If PlayWithFriend && Player 1:
+│     │  ├─ GameManager.SetCurrentSetupPlayer(2)
+│     │  └─ SceneManager.LoadScene(SceneNames.Setup)
+│     │
+│     └─ Else:
+│        └─ SceneManager.LoadScene(SceneNames.Battle)
+│
+└─ BattleScene
+*/
+
+// ============================================================================
+// 🧪 STEP-BY-STEP CREATION CHECKLIST
+// ============================================================================
+
+/*
+STEP 1: Create WeaponList ScriptableObject
+ ☐ Project → Assets/Data (right-click)
+ ☐ Create → BattleShip → Weapon List
+ ☐ Name it: "WeaponList"
+ ☐ Add weapons to the list (via Inspector)
+
+STEP 2: Assign WeaponListData to GameManager
+ ☐ Select GameManager in MenuScene
+ ☐ Inspector → Weapon Data section
+ ☐ Drag WeaponList asset to "Weapon List Data" field
+
+STEP 3: Create WeaponSetupScene
+ ☐ File → New Scene (2D)
+ ☐ Save as: Assets/Scenes/WeaponSetupScene.unity
+
+STEP 4: Setup UI Canvas
+ ☐ Create Canvas (or auto-create with first UI element)
+ ☐ Add TextMeshProUGUI: PlayerTitleText
+ ☐ Add TextMeshProUGUI: CurrentGoldText
+ ☐ Add ScrollView with Content
+ ☐ Add Button: ConfirmButton
+ ☐ Add Button: CancelButton
+
+STEP 5: Create WeaponButton Prefab
+ ☐ Create GameObject: WeaponButton
+ ☐ Add Button component
+ ☐ Add Image component (for icon)
+ ☐ Add child TextMeshProUGUI: WeaponNameText
+ ☐ Add child TextMeshProUGUI: GoldCostText
+ ☐ Add child TextMeshProUGUI: DescriptionText
+ ☐ Add WeaponButton.cs script
+ ☐ Assign all references in Inspector
+ ☐ Drag to Assets/Prefabs/WeaponButton.prefab
+ ☐ Delete from scene
+
+STEP 6: Add WeaponSetupUIManager to Scene
+ ☐ Create empty GameObject: WeaponSetupUIManager
+ ☐ Add WeaponSetupUIManager.cs script
+ ☐ Assign all references in Inspector:
+    ☐ Player Title Text
+    ☐ Current Gold Text
+    ☐ Weapon Button Container (ScrollView/Content)
+    ☐ Confirm Button
+    ☐ Cancel Button
+    ☐ Weapon Button Prefab
+
+STEP 7: Test
+ ☐ Start from MenuScene
+ ☐ Test PlayWithBot + AdvancedMap
+ ☐ Test PlayWithFriend + AdvancedMap
+ ☐ Test NormalMap (should skip WeaponSetupScene)
+ ☐ Verify gold loads correctly
+ ☐ Verify weapon selection works
+ ☐ Verify scene transitions
+*/
+
+// ============================================================================
+// ⚠️ COMMON ISSUES & FIXES
+// ============================================================================
+
+/*
+ISSUE: "WeaponListData is null"
+FIX: Assign WeaponList ScriptableObject to GameManager.weaponListData
+
+ISSUE: "NullReferenceException on ProgressManager"
+FIX: This is handled - code falls back to 100 gold if ProgressManager not found
+     (See WeaponSetupUIManager.LoadWeaponSetupData())
+
+ISSUE: Weapons buttons not showing
+FIX: 
+ 1. Check WeaponButton prefab is assigned
+ 2. Check WeaponList has weapons
+ 3. Check weapon button container (Content) is assigned correctly
+ 4. Check WeaponButton.cs script is attached to prefab
+
+ISSUE: Gold not deducting
+FIX: Check OnWeaponSelected() is being called
+     Set breakpoint and verify weapon cost comparison
+
+ISSUE: Player 2 starts with wrong gold
+FIX: This shouldn't happen - each player loads independently when gold == 0
+     Check: GameManager.SetCurrentSetupPlayer(2) is called before scene reload
+
+ISSUE: Scene doesn't load
+FIX: Verify scene names in SceneNames.cs match actual scene files:
+     ☐ SceneNames.WeaponSetup = "WeaponSetupScene"
+     ☐ SceneNames.Setup = "SetupScene"
+     ☐ SceneNames.Battle = "BattleScene"
+     ☐ SceneNames.MainMenu = "MenuScene"
+*/
+
+// ============================================================================
+// 📊 DATA STRUCTURES REFERENCE
+// ============================================================================
+
+/*
+GameManager (after modifications):
+┌─ gameMode: GameMode
+├─ gameMap: GameMap
+├─ currentSetupPlayer: int
+├─ shipListData: ShipListData
+├─ weaponListData: WeaponListData ← NEW
+├─ player1Placements: List<ShipPlacementData>
+├─ player2Placements: List<ShipPlacementData>
+├─ player1SelectedWeapons: List<WeaponType> ← NEW
+├─ player2SelectedWeapons: List<WeaponType> ← NEW
+├─ player1Gold: int ← NEW
+├─ player2Gold: int ← NEW
+└─ [Methods for weapon management] ← NEW
+
+WeaponData (existing):
+├─ type: WeaponType
+├─ weaponName: string
+├─ goldCost: int
+├─ cpCost: int
+├─ effectPrefab: GameObject
+├─ icon: Sprite
+└─ description: string
+
+WeaponType (existing enum):
+├─ NormalShot
+├─ NuclearBomb
+├─ Bomber
+├─ Torpedoes
+├─ Radar
+└─ AntiAircraft
+*/
+
+// ============================================================================
+// ✨ END OF VERIFICATION CHECKLIST
+// ============================================================================
