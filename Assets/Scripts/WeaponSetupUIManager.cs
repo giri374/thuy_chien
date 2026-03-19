@@ -75,6 +75,13 @@ public class WeaponSetupUIManager : MonoBehaviour
             }
         }
 
+        // Thêm NormalShot vào mặc định (không cần chọn)
+        if (!GameManager.Instance.GetSelectedWeapons(currentPlayer).Contains(WeaponType.NormalShot))
+        {
+            GameManager.Instance.AddWeapon(currentPlayer, WeaponType.NormalShot);
+            Debug.Log($"[WeaponSetupUIManager] Player {currentPlayer} added NormalShot by default");
+        }
+
         currentGold = GameManager.Instance.GetPlayerGold(currentPlayer);
         initialGold = currentGold;
 
@@ -84,7 +91,7 @@ public class WeaponSetupUIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Tạo các nút chọn vũ khí từ WeaponListData
+    /// Tạo các nút chọn vũ khí từ WeaponListData (không hiển thị NormalShot - nó được thêm mặc định)
     /// </summary>
     private void CreateWeaponButtons ()
     {
@@ -112,9 +119,15 @@ public class WeaponSetupUIManager : MonoBehaviour
 
         selectedWeaponsMap.Clear();
 
-        // Tạo button cho mỗi vũ khí
+        // Tạo button cho mỗi vũ khí (skip NormalShot - nó thêm vào mặc định)
         foreach (var weapon in weaponListData.weapons)
         {
+            // Skip NormalShot - nó được thêm vào danh sách mặc định
+            if (weapon.type == WeaponType.NormalShot)
+            {
+                continue;
+            }
+
             var buttonObj = Instantiate(weaponButtonPrefab, weaponButtonContainer);
             var buttonRect = buttonObj.GetComponent<RectTransform>();
 
