@@ -20,6 +20,8 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
     public Sprite emptySprite;
     public Sprite hitSprite;
     public Sprite previewSprite;
+    public Sprite hintSprite;              // Shown by Radar weapon
+    public Sprite antiAircraftSprite;      // Shown by Anti-Aircraft weapon
 
     [Header("Effects")]
     public GameObject hitAnimationPrefab;
@@ -30,7 +32,7 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
 
     private GridManager gridManager;
 
-    public void Initialize(Vector2Int position, GridManager manager)
+    public void Initialize (Vector2Int position, GridManager manager)
     {
         gridPosition = position;
         gridManager = manager;
@@ -38,29 +40,101 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
         ResetCell();
     }
 
-    public void ResetCell()
+    public void ResetCell ()
     {
         cellState = CellState.Unknown;
         occupyingShip = null;
         UpdateVisual();
     }
 
-    public void OnPointerClick(PointerEventData eventData)
+    /// <summary>
+    /// Sets the cell state and updates visuals.
+    /// Used by weapon systems to change cell state.
+    /// </summary>
+    public void SetCellState (CellState newState)
+    {
+        cellState = newState;
+        UpdateVisual();
+    }
+
+    public void OnPointerClick (PointerEventData eventData)
     {
         gridManager.OnCellClicked(this);
     }
 
-    public void OnPointerEnter(PointerEventData eventData)
+    public void OnPointerEnter (PointerEventData eventData)
     {
+        // Check if we should show weapon preview instead of default preview
+        if (BattleWeaponManager.Instance != null && gridManager != null)
+        {
+            WeaponType currentWeapon = BattleWeaponManager.Instance.GetCurrentWeapon();
+
+            // Show preview for special weapons on opponent's grid only
+            if (currentWeapon != WeaponType.NormalShot)
+            {
+                // Determine which grid is the opponent (the one being attacked)
+                GridManager targetGrid = null;
+                if (BattleSceneLogic.Instance != null)
+                {
+                    Turn currentTurn = BattleSceneLogic.Instance.currentTurn;
+                    bool isOwnGrid = (gridManager.isPlayer1Grid && currentTurn == Turn.Player1) ||
+                                     (!gridManager.isPlayer1Grid && currentTurn == Turn.Player2);
+
+                    // Only show preview on opponent's grid
+                    if (!isOwnGrid)
+                    {
+                        targetGrid = gridManager;
+                    }
+                }
+
+                if (targetGrid != null)
+                {
+                    BattleWeaponManager.Instance.ShowWeaponPreview(gridPosition, targetGrid, currentWeapon);
+                    return;
+                }
+            }
+        }
+
+        // Default preview behavior for NormalShot or own grid
         spriteRenderer.sprite = previewSprite;
     }
 
-    public void OnPointerExit(PointerEventData eventData)
+    public void OnPointerExit (PointerEventData eventData)
     {
+        // Check if weapon preview was shown
+        if (BattleWeaponManager.Instance != null && gridManager != null)
+        {
+            WeaponType currentWeapon = BattleWeaponManager.Instance.GetCurrentWeapon();
+
+            if (currentWeapon != WeaponType.NormalShot)
+            {
+                // Determine which grid is the opponent
+                GridManager targetGrid = null;
+                if (BattleSceneLogic.Instance != null)
+                {
+                    Turn currentTurn = BattleSceneLogic.Instance.currentTurn;
+                    bool isOwnGrid = (gridManager.isPlayer1Grid && currentTurn == Turn.Player1) ||
+                                     (!gridManager.isPlayer1Grid && currentTurn == Turn.Player2);
+
+                    if (!isOwnGrid)
+                    {
+                        targetGrid = gridManager;
+                    }
+                }
+
+                if (targetGrid != null)
+                {
+                    BattleWeaponManager.Instance.HideWeaponPreview(gridManager);
+                    return;
+                }
+            }
+        }
+
+        // Default behavior
         UpdateVisual();
     }
 
-    public void UpdateVisual()
+    public void UpdateVisual ()
     {
         if (spriteRenderer == null)
         {
@@ -88,15 +162,25 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
                 spriteRenderer.sprite = hitSprite;
                 spriteRenderer.color = hitColor;
                 break;
+
+            case CellState.RadarHinted:
+                spriteRenderer.sprite = hintSprite;
+                spriteRenderer.color = normalColor;
+                break;
+
+            case CellState.AntiAircraftMarked:
+                spriteRenderer.sprite = antiAircraftSprite;
+                spriteRenderer.color = normalColor;
+                break;
         }
     }
 
-    public void SetOccupyingShip(Ship ship)
+    public void SetOccupyingShip (Ship ship)
     {
         occupyingShip = ship;
     }
 
-    public bool IsAvailable()
+    public bool IsAvailable ()
     {
         return occupyingShip == null;
     }

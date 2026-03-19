@@ -287,4 +287,66 @@ public class BattleWeaponManager : MonoBehaviour
             }
         }
     }
+
+    // ── Weapon Preview System ────────────────────────────────
+
+    /// <summary>
+    /// Shows weapon effect preview on the target grid at the hovered position.
+    /// Called when mouse hovers over enemy grid with a weapon selected.
+    /// </summary>
+    public void ShowWeaponPreview (Vector2Int hoverPosition, GridManager targetGrid, WeaponType weaponType)
+    {
+        if (targetGrid == null)
+        {
+            return;
+        }
+
+        // Create weapon to get affected cells
+        Weapon weapon = WeaponFactory.CreateWeapon(weaponType);
+        if (weapon == null)
+        {
+            return;
+        }
+
+        // Get the affected cells for this weapon at this position
+        List<Vector2Int> affectedCells = weapon.GetStrategy().GetAffectedCells(hoverPosition, targetGrid);
+
+        // Show preview sprites on all affected cells
+        foreach (var position in affectedCells)
+        {
+            Cell cell = targetGrid.GetCell(position);
+            if (cell != null)
+            {
+                cell.spriteRenderer.sprite = cell.previewSprite;
+            }
+        }
+
+        // Cleanup
+        Destroy(weapon.gameObject);
+    }
+
+    /// <summary>
+    /// Clears weapon effect preview (called on mouse exit).
+    /// Resets all cells to their normal visual state.
+    /// </summary>
+    public void HideWeaponPreview (GridManager targetGrid)
+    {
+        if (targetGrid == null)
+        {
+            return;
+        }
+
+        // Reset all cells to their normal visuals
+        for (int x = 0; x < targetGrid.gridWidth; x++)
+        {
+            for (int y = 0; y < targetGrid.gridHeight; y++)
+            {
+                Cell cell = targetGrid.GetCell(x, y);
+                if (cell != null)
+                {
+                    cell.UpdateVisual();
+                }
+            }
+        }
+    }
 }

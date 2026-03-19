@@ -5,6 +5,8 @@ namespace Core.Models
         Unknown,
         Empty,
         Hit,
-        Sunk
+        Sunk,
+        RadarHinted,           // Shown by Radar weapon - reveals ship location without attacking
+        AntiAircraftMarked     // Marked by Anti-Aircraft weapon - blocks incoming attacks
     }
 }

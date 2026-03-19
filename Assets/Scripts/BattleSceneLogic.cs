@@ -172,6 +172,7 @@ public class BattleSceneLogic : MonoBehaviour
     /// Creates an attack command and executes it asynchronously.
     /// This is the main entry point for all attack actions (player and bot).
     /// The result is handled via the callback, which then invokes the normal game flow logic.
+    /// Routes through the weapon system for special weapons.
     /// </summary>
     private async void CreateAndExecuteAttackCommandAsync (WeaponType weaponType, Vector2Int position, Turn attacker)
     {
@@ -185,7 +186,15 @@ public class BattleSceneLogic : MonoBehaviour
         commandHistory.RecordCommand(command);
 
         // Execute the command asynchronously
-        await commandExecutor.ExecuteAsync(command, HandleAttackResult);
+        // Use the weapon executor which handles both single-cell and multi-cell attacks
+        if (weaponType != WeaponType.NormalShot)
+        {
+            await commandExecutor.ExecuteWeaponAttackAsync(command, HandleAttackResult);
+        }
+        else
+        {
+            await commandExecutor.ExecuteAsync(command, HandleAttackResult);
+        }
     }
 
     /// <summary>
@@ -223,8 +232,44 @@ public class BattleSceneLogic : MonoBehaviour
         // Determine which player attacked based on the current turn
         bool isPlayer1Attacking = currentTurn == Turn.Player1;
         GridManager targetGrid = isPlayer1Attacking ? player2Grid : player1Grid;
+        GridManager attackerGrid = isPlayer1Attacking ? player1Grid : player2Grid;
         int attackerIndex = isPlayer1Attacking ? 1 : 2;
 
+        // Handle Radar attack (doesn't consume turn, costs CP)
+        if (lastUsedWeapon == WeaponType.Radar)
+        {
+            int cpCost = GetWeaponCPCost(lastUsedWeapon);
+            if (cpCost > 0)
+            {
+                GameManager.Instance.SubtractCP(attackerIndex, cpCost);
+                Debug.Log($"[BattleSceneLogic] Player {attackerIndex} used Radar, cost: {cpCost} CP");
+            }
+            // Radar doesn't switch turns - same player goes again
+            if (BattleWeaponManager.Instance != null)
+            {
+                BattleWeaponManager.Instance.SelectWeapon(WeaponType.NormalShot);
+            }
+            return;
+        }
+
+        // Handle Anti-Aircraft attack (defensive, doesn't consume opponent's turn but costs CP)
+        if (lastUsedWeapon == WeaponType.AntiAircraft)
+        {
+            int cpCost = GetWeaponCPCost(lastUsedWeapon);
+            if (cpCost > 0)
+            {
+                GameManager.Instance.SubtractCP(attackerIndex, cpCost);
+                Debug.Log($"[BattleSceneLogic] Player {attackerIndex} set Anti-Aircraft defense, cost: {cpCost} CP");
+            }
+            // Anti-Aircraft doesn't switch turns - same player goes again
+            if (BattleWeaponManager.Instance != null)
+            {
+                BattleWeaponManager.Instance.SelectWeapon(WeaponType.NormalShot);
+            }
+            return;
+        }
+
+        // Normal attacks and offensive weapons (NuclearBomb, Bomber, Torpedoes)
         // Add/Subtract CP based on weapon used
         if (lastUsedWeapon == WeaponType.NormalShot)
         {

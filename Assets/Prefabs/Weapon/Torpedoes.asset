@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eec577b94f6392447ad9e090c94d09aa, type: 3}
+  m_Name: Torpedoes
+  m_EditorClassIdentifier: 
+  type: 3
+  weaponName: 
+  goldCost: 10
+  cpCost: 0
+  effectPrefab: {fileID: 0}
+  icon: {fileID: 8912931992306401145, guid: 9f8bfd48f912d7b46bd19c2fd9573e07, type: 3}
+  description: 

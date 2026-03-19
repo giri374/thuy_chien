@@ -10,13 +10,14 @@ public class Board
 
     private CellData[,] cells = new CellData[GridWidth, GridHeight];
     private readonly Dictionary<int, ShipInstanceData> ships = new Dictionary<int, ShipInstanceData>();
+    private readonly HashSet<Vector2Int> antiAircraftCells = new HashSet<Vector2Int>();  // Cells protected by Anti-Aircraft
 
-    public Board()
+    public Board ()
     {
         InitializeEmptyCells();
     }
 
-    private void InitializeEmptyCells()
+    private void InitializeEmptyCells ()
     {
         for (int x = 0; x < GridWidth; x++)
         {
@@ -27,7 +28,7 @@ public class Board
         }
     }
 
-    public bool CanPlaceShip(int shipId, Vector2Int position, bool isHorizontal, ShipData shipData)
+    public bool CanPlaceShip (int shipId, Vector2Int position, bool isHorizontal, ShipData shipData)
     {
         if (shipData == null)
         {
@@ -79,7 +80,7 @@ public class Board
         return true;
     }
 
-    public bool PlaceShip(int shipId, Vector2Int position, bool isHorizontal, ShipData shipData)
+    public bool PlaceShip (int shipId, Vector2Int position, bool isHorizontal, ShipData shipData)
     {
         if (!CanPlaceShip(shipId, position, isHorizontal, shipData))
         {
@@ -105,7 +106,7 @@ public class Board
         return true;
     }
 
-    public bool RemoveShip(int shipId)
+    public bool RemoveShip (int shipId)
     {
         if (!ships.TryGetValue(shipId, out var shipInstance))
         {
@@ -123,19 +124,15 @@ public class Board
         return true;
     }
 
-    public bool Attack(Vector2Int position)
+    public bool Attack (Vector2Int position)
     {
-        if (!IsWithinBounds(position))
+        // Use CanAttackCell to check bounds, already attacked, and Anti-Aircraft protection
+        if (!CanAttackCell(position))
         {
             return false;
         }
 
         var cellData = cells[position.x, position.y];
-
-        if (cellData.state != CellState.Unknown)
-        {
-            return false;
-        }
 
         if (cellData.HasShip)
         {
@@ -156,7 +153,7 @@ public class Board
         return false;
     }
 
-    public List<Vector2Int> AttackMultiple(List<Vector2Int> positions)
+    public List<Vector2Int> AttackMultiple (List<Vector2Int> positions)
     {
         var hitPositions = new List<Vector2Int>();
 
@@ -171,7 +168,7 @@ public class Board
         return hitPositions;
     }
 
-    public CellData GetCell(Vector2Int position)
+    public CellData GetCell (Vector2Int position)
     {
         if (!IsWithinBounds(position))
         {
@@ -181,12 +178,12 @@ public class Board
         return cells[position.x, position.y];
     }
 
-    public CellData[,] GetAllCells()
+    public CellData[,] GetAllCells ()
     {
-        return (CellData[,])cells.Clone();
+        return (CellData[,]) cells.Clone();
     }
 
-    public ShipInstanceData? GetShipAt(Vector2Int position)
+    public ShipInstanceData? GetShipAt (Vector2Int position)
     {
         var cell = GetCell(position);
         if (cell.HasShip && ships.TryGetValue(cell.shipInstanceId, out var shipInstance))
@@ -197,22 +194,88 @@ public class Board
         return null;
     }
 
-    public ShipInstanceData? GetShip(int shipId)
+    public ShipInstanceData? GetShip (int shipId)
     {
         return ships.TryGetValue(shipId, out var shipInstance) ? shipInstance : null;
     }
 
-    public List<ShipInstanceData> GetAllShips()
+    public List<ShipInstanceData> GetAllShips ()
     {
         return ships.Values.ToList();
     }
 
-    public bool AllShipsSunk()
+    public bool AllShipsSunk ()
     {
         return ships.Count > 0 && ships.Values.All(ship => ship.IsSunk);
     }
 
-    public void MarkAdjacentEmpty(Vector2Int position)
+    /// <summary>
+    /// Checks if a cell can be attacked (not already attacked and not protected by Anti-Aircraft).
+    /// </summary>
+    public bool CanAttackCell (Vector2Int position)
+    {
+        if (!IsWithinBounds(position))
+        {
+            return false;
+        }
+
+        var cellData = cells[position.x, position.y];
+
+        // Cannot attack already attacked cells
+        if (cellData.state != Core.Models.CellState.Unknown)
+        {
+            return false;
+        }
+
+        // Cannot attack Anti-Aircraft protected cells
+        if (antiAircraftCells.Contains(position))
+        {
+            Debug.Log($"[Board] Cell {position} is protected by Anti-Aircraft!");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Marks a cell as protected by Anti-Aircraft defense.
+    /// </summary>
+    public void MarkAntiAircraft (Vector2Int position)
+    {
+        if (IsWithinBounds(position))
+        {
+            antiAircraftCells.Add(position);
+        }
+    }
+
+    /// <summary>
+    /// Clears all Radar hint markers from the grid for the next attack.
+    /// </summary>
+    public void ClearRadarHints ()
+    {
+        for (int x = 0; x < GridWidth; x++)
+        {
+            for (int y = 0; y < GridHeight; y++)
+            {
+                var cellData = cells[x, y];
+                if (cellData.state == Core.Models.CellState.RadarHinted)
+                {
+                    cellData.state = Core.Models.CellState.Unknown;
+                    cells[x, y] = cellData;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Clears all anti-aircraft protection (for testing or turn reset if needed).
+    /// </summary>
+    public void ClearAntiAircraftProtection ()
+    {
+        antiAircraftCells.Clear();
+    }
+
+    public void MarkAdjacentEmpty (Vector2Int position)
     {
         for (int dx = -1; dx <= 1; dx++)
         {
@@ -233,12 +296,12 @@ public class Board
         }
     }
 
-    public int GetShipCount()
+    public int GetShipCount ()
     {
         return ships.Count;
     }
 
-    public List<Vector2Int> GetCellsWithShips()
+    public List<Vector2Int> GetCellsWithShips ()
     {
         var result = new List<Vector2Int>();
 
@@ -256,19 +319,19 @@ public class Board
         return result;
     }
 
-    private bool IsWithinBounds(Vector2Int position)
+    private bool IsWithinBounds (Vector2Int position)
     {
         return position.x >= 0 && position.x < GridWidth &&
                position.y >= 0 && position.y < GridHeight;
     }
 
-    private bool IsWithinBounds(Vector2Int position, Vector2Int size)
+    private bool IsWithinBounds (Vector2Int position, Vector2Int size)
     {
         return position.x >= 0 && position.x + size.x <= GridWidth &&
                position.y >= 0 && position.y + size.y <= GridHeight;
     }
 
-    private List<Vector2Int> GetOccupiedCells(Vector2Int position, Vector2Int size)
+    private List<Vector2Int> GetOccupiedCells (Vector2Int position, Vector2Int size)
     {
         var result = new List<Vector2Int>();
 
@@ -283,7 +346,7 @@ public class Board
         return result;
     }
 
-    public string ToJson()
+    public string ToJson ()
     {
         var boardJson = new BoardJson
         {
@@ -294,7 +357,7 @@ public class Board
         return JsonUtility.ToJson(boardJson);
     }
 
-    public static Board FromJson(string json)
+    public static Board FromJson (string json)
     {
         var boardJson = JsonUtility.FromJson<BoardJson>(json);
         var board = new Board();
