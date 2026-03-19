@@ -1,0 +1,232 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using System.Collections.Generic;
+
+/// <summary>
+/// Quản lý hiển thị và lựa chọn vũ khí trong BattleScene
+/// - Hiển thị vũ khí đã chọn của từng người chơi
+/// - Xử lý lựa chọn vũ khí hiện tại
+/// - Update khi turn thay đổi
+/// </summary>
+public class BattleWeaponManager : MonoBehaviour
+{
+    [Header("UI References")]
+    public TextMeshProUGUI selectedWeaponText;
+    public Transform weaponButtonContainer;
+    public GameObject weaponButtonPrefab;
+
+    [Header("Settings")]
+    public bool autoShowCurrentPlayerWeapons = true;
+
+    // Current state
+    private Turn currentTurn = Turn.Player1;
+    private WeaponType currentWeapon = WeaponType.NormalShot;
+    private Dictionary<WeaponType, BattleWeaponButton> weaponButtons = new Dictionary<WeaponType, BattleWeaponButton>();
+
+    private void Start ()
+    {
+        // Subscribe to turn changes
+        if (BattleSceneLogic.Instance != null)
+        {
+            BattleSceneLogic.Instance.onTurnChanged += OnTurnChanged;
+        }
+
+        // Initialize with current player's weapons
+        RefreshWeaponDisplay();
+    }
+
+    private void OnDestroy ()
+    {
+        if (BattleSceneLogic.Instance != null)
+        {
+            BattleSceneLogic.Instance.onTurnChanged -= OnTurnChanged;
+        }
+    }
+
+    // ── Turn Management ────────────────────────────────────────
+
+    private void OnTurnChanged (Turn turn, GameMode gameMode)
+    {
+        currentTurn = turn;
+
+        if (autoShowCurrentPlayerWeapons)
+        {
+            RefreshWeaponDisplay();
+        }
+
+        Debug.Log($"[BattleWeaponManager] Turn changed to {turn}");
+    }
+
+    // ── Weapon Display ────────────────────────────────────────
+
+    /// <summary>
+    /// Load và hiển thị vũ khí của người chơi hiện tại
+    /// </summary>
+    private void RefreshWeaponDisplay ()
+    {
+        // Lấy player index từ turn
+        int playerIndex = currentTurn == Turn.Player1 ? 1 : 2;
+        var selectedWeapons = GameManager.Instance.GetSelectedWeapons(playerIndex);
+
+        // Đảm bảo container có VerticalLayoutGroup
+        var layoutGroup = weaponButtonContainer.GetComponent<VerticalLayoutGroup>();
+        if (layoutGroup == null)
+        {
+            layoutGroup = weaponButtonContainer.gameObject.AddComponent<VerticalLayoutGroup>();
+            layoutGroup.childForceExpandHeight = false;
+            layoutGroup.childForceExpandWidth = true;
+        }
+
+        // Clear old buttons
+        ClearWeaponButtons();
+
+        // Nếu không có vũ khí được chọn, hiển thị default
+        if (selectedWeapons.Count == 0)
+        {
+            Debug.LogWarning($"[BattleWeaponManager] Player {playerIndex} has no selected weapons!");
+            SetSelectedWeaponInfo(WeaponType.NormalShot);
+            return;
+        }
+
+        // Tạo buttons cho mỗi vũ khí
+        int buttonCount = 0;
+        foreach (var weaponType in selectedWeapons)
+        {
+            CreateWeaponButton(weaponType);
+            buttonCount++;
+        }
+
+        // Set first weapon as current
+        if (buttonCount > 0)
+        {
+            currentWeapon = selectedWeapons[0];
+            SelectWeapon(currentWeapon);
+        }
+
+        // Force rebuild layout
+        LayoutRebuilder.ForceRebuildLayoutImmediate(weaponButtonContainer.GetComponent<RectTransform>());
+
+        Debug.Log($"[BattleWeaponManager] Loaded {buttonCount} weapons for Player {playerIndex}");
+    }
+
+    /// <summary>
+    /// Tạo button cho một vũ khí
+    /// </summary>
+    private void CreateWeaponButton (WeaponType weaponType)
+    {
+        var weaponData = GameManager.Instance.weaponListData.GetWeaponByType(weaponType);
+        if (weaponData == null)
+        {
+            Debug.LogError($"[BattleWeaponManager] WeaponData not found for type {weaponType}");
+            return;
+        }
+
+        var buttonObj = Instantiate(weaponButtonPrefab, weaponButtonContainer);
+        var buttonRect = buttonObj.GetComponent<RectTransform>();
+
+        // Đặt lại anchor để nằm đúng trong container
+        if (buttonRect != null)
+        {
+            buttonRect.anchorMin = new Vector2(0, 1);
+            buttonRect.anchorMax = new Vector2(1, 1);
+            buttonRect.pivot = new Vector2(0.5f, 1);
+            buttonRect.offsetMin = Vector2.zero;
+            buttonRect.offsetMax = Vector2.zero;
+        }
+
+        // Thêm LayoutElement nếu chưa có
+        var layoutElement = buttonObj.GetComponent<LayoutElement>();
+        if (layoutElement == null)
+        {
+            layoutElement = buttonObj.AddComponent<LayoutElement>();
+        }
+        layoutElement.preferredHeight = 80; // Chiều cao button
+
+        var battleWeaponButton = buttonObj.GetComponent<BattleWeaponButton>();
+
+        if (battleWeaponButton != null)
+        {
+            battleWeaponButton.Setup(weaponType, weaponData, OnWeaponSelected);
+            weaponButtons[weaponType] = battleWeaponButton;
+        }
+    }
+
+    /// <summary>
+    /// Xóa tất cả weapon buttons
+    /// </summary>
+    private void ClearWeaponButtons ()
+    {
+        foreach (Transform child in weaponButtonContainer)
+        {
+            Destroy(child.gameObject);
+        }
+        weaponButtons.Clear();
+    }
+
+    // ── Weapon Selection ──────────────────────────────────────
+
+    /// <summary>
+    /// Xử lý khi đã chọn vũ khí
+    /// </summary>
+    private void OnWeaponSelected (WeaponType weaponType)
+    {
+        SelectWeapon(weaponType);
+    }
+
+    /// <summary>
+    /// Set vũ khí hiện tại
+    /// </summary>
+    public void SelectWeapon (WeaponType weaponType)
+    {
+        // Update previous button
+        if (weaponButtons.ContainsKey(currentWeapon))
+        {
+            weaponButtons[currentWeapon].SetSelected(false);
+        }
+
+        // Update current weapon
+        currentWeapon = weaponType;
+        SetSelectedWeaponInfo(weaponType);
+
+        // Update new button
+        if (weaponButtons.ContainsKey(currentWeapon))
+        {
+            weaponButtons[currentWeapon].SetSelected(true);
+        }
+
+        Debug.Log($"[BattleWeaponManager] Selected weapon: {weaponType}");
+    }
+
+    /// <summary>
+    /// Get vũ khí được chọn hiện tại
+    /// </summary>
+    public WeaponType GetCurrentWeapon () => currentWeapon;
+
+    /// <summary>
+    /// Get vũ khí được chọn hiện tại (WeaponData)
+    /// </summary>
+    public WeaponData GetCurrentWeaponData ()
+    {
+        return GameManager.Instance.weaponListData.GetWeaponByType(currentWeapon);
+    }
+
+    // ── UI Updates ────────────────────────────────────────────
+
+    /// <summary>
+    /// Cập nhật text hiển thị vũ khí hiện tại
+    /// </summary>
+    private void SetSelectedWeaponInfo (WeaponType weaponType)
+    {
+        var weaponData = GameManager.Instance.weaponListData.GetWeaponByType(weaponType);
+        if (weaponData == null)
+        {
+            return;
+        }
+
+        if (selectedWeaponText != null)
+        {
+            selectedWeaponText.text = $"Selected: {weaponData.weaponName}";
+        }
+    }
+}

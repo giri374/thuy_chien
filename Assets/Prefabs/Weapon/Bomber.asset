@@ -17,5 +17,5 @@ MonoBehaviour:
   goldCost: 50
   cpCost: 5
   effectPrefab: {fileID: 0}
-  icon: {fileID: 21300000, guid: d6e53ad35d6b21945ae805862b84b751, type: 3}
+  icon: {fileID: 3794856577786680068, guid: d807b94d938d7eb4aa460e14b8a1bd42, type: 3}
   description: 
