@@ -25,6 +25,10 @@ public class GameManager : MonoBehaviour
     public static int player1Gold = 0;
     public static int player2Gold = 0;
 
+    // ── CP Data (Combat Power) ────────────────────────────────
+    public static int player1CP = 0;
+    public static int player2CP = 0;
+
     private void Awake ()
     {
         if (Instance == null)
@@ -110,6 +114,72 @@ public class GameManager : MonoBehaviour
     public int GetPlayerGold (int playerIndex)
     {
         return playerIndex == 1 ? player1Gold : player2Gold;
+    }
+
+    /// <summary>
+    /// Đặt CP (Combat Power) cho người chơi
+    /// </summary>
+    public void SetPlayerCP (int playerIndex, int cpAmount)
+    {
+        if (playerIndex == 1)
+        {
+            player1CP = Mathf.Max(0, cpAmount);
+        }
+        else
+        {
+            player2CP = Mathf.Max(0, cpAmount);
+        }
+        Debug.Log($"[GameManager] Player {playerIndex} CP set to {GetPlayerCP(playerIndex)}");
+    }
+
+    /// <summary>
+    /// Lấy CP hiện tại của người chơi
+    /// </summary>
+    public int GetPlayerCP (int playerIndex)
+    {
+        return playerIndex == 1 ? player1CP : player2CP;
+    }
+
+    /// <summary>
+    /// Cộng CP cho người chơi (từ NormalShot hoặc chiến thắng)
+    /// </summary>
+    public void AddCP (int playerIndex, int cpAmount)
+    {
+        if (playerIndex == 1)
+        {
+            player1CP = Mathf.Max(0, player1CP + cpAmount);
+        }
+        else
+        {
+            player2CP = Mathf.Max(0, player2CP + cpAmount);
+        }
+        Debug.Log($"[GameManager] Player {playerIndex} gained {cpAmount} CP, total: {GetPlayerCP(playerIndex)}");
+    }
+
+    /// <summary>
+    /// Trừ CP khi sử dụng vũ khí
+    /// </summary>
+    public bool SubtractCP (int playerIndex, int cpCost)
+    {
+        int currentCP = GetPlayerCP(playerIndex);
+        if (currentCP >= cpCost)
+        {
+            if (playerIndex == 1)
+            {
+                player1CP -= cpCost;
+            }
+            else
+            {
+                player2CP -= cpCost;
+            }
+            Debug.Log($"[GameManager] Player {playerIndex} spent {cpCost} CP, remaining: {GetPlayerCP(playerIndex)}");
+            return true;
+        }
+        else
+        {
+            Debug.LogWarning($"[GameManager] Player {playerIndex} không đủ CP: {currentCP}/{cpCost}");
+            return false;
+        }
     }
 
     /// <summary>

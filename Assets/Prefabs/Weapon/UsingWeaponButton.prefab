@@ -140,7 +140,7 @@ MonoBehaviour:
   weaponIconImage: {fileID: 2131948619416397371}
   weaponNameText: {fileID: 5103341084482992030}
   weaponCPCostText: {fileID: 5557510303873455045}
-  selectButton: {fileID: 0}
+  selectButton: {fileID: 172685948676843764}
 --- !u!1 &2561598953180855059
 GameObject:
   m_ObjectHideFlags: 0
@@ -523,8 +523,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 33.499985, y: 18}
-  m_SizeDelta: {x: 15, y: 14}
+  m_AnchoredPosition: {x: 31.499985, y: 16.431305}
+  m_SizeDelta: {x: 19, y: 17.137}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7623456262727028370
 CanvasRenderer:

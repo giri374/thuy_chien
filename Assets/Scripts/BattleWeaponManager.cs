@@ -11,8 +11,12 @@ using System.Collections.Generic;
 /// </summary>
 public class BattleWeaponManager : MonoBehaviour
 {
+    public static BattleWeaponManager Instance { get; private set; }
+
     [Header("UI References")]
     public TextMeshProUGUI selectedWeaponText;
+    public TextMeshProUGUI player1CPText;
+    public TextMeshProUGUI player2CPText;
     public Transform weaponButtonContainer;
     public GameObject weaponButtonPrefab;
 
@@ -26,6 +30,8 @@ public class BattleWeaponManager : MonoBehaviour
 
     private void Start ()
     {
+        Instance = this;
+
         // Subscribe to turn changes
         if (BattleSceneLogic.Instance != null)
         {
@@ -55,6 +61,9 @@ public class BattleWeaponManager : MonoBehaviour
             RefreshWeaponDisplay();
         }
 
+        // Update CP display for current player
+        UpdateCPDisplay();
+
         Debug.Log($"[BattleWeaponManager] Turn changed to {turn}");
     }
 
@@ -68,6 +77,9 @@ public class BattleWeaponManager : MonoBehaviour
         // Lấy player index từ turn
         int playerIndex = currentTurn == Turn.Player1 ? 1 : 2;
         var selectedWeapons = GameManager.Instance.GetSelectedWeapons(playerIndex);
+
+        // Cập nhật CP display
+        UpdateCPDisplay();
 
         // Đảm bảo container có VerticalLayoutGroup
         var layoutGroup = weaponButtonContainer.GetComponent<VerticalLayoutGroup>();
@@ -147,7 +159,8 @@ public class BattleWeaponManager : MonoBehaviour
 
         if (battleWeaponButton != null)
         {
-            battleWeaponButton.Setup(weaponType, weaponData, OnWeaponSelected);
+            int playerIndex = currentTurn == Turn.Player1 ? 1 : 2;
+            battleWeaponButton.Setup(weaponType, weaponData, OnWeaponSelected, playerIndex);
             weaponButtons[weaponType] = battleWeaponButton;
         }
     }
@@ -227,6 +240,51 @@ public class BattleWeaponManager : MonoBehaviour
         if (selectedWeaponText != null)
         {
             selectedWeaponText.text = $"Selected: {weaponData.weaponName}";
+        }
+    }
+
+    /// <summary>
+    /// Cập nhật hiển thị CP của cả hai người chơi
+    /// </summary>
+    private void UpdateCPDisplay ()
+    {
+        if (GameManager.Instance == null)
+        {
+            return;
+        }
+
+        // Update Player 1 CP
+        if (player1CPText != null)
+        {
+            int player1CP = GameManager.Instance.GetPlayerCP(1);
+            player1CPText.text = $"P1 CP: {player1CP}";
+        }
+
+        // Update Player 2 CP
+        if (player2CPText != null)
+        {
+            int player2CP = GameManager.Instance.GetPlayerCP(2);
+            player2CPText.text = $"P2 CP: {player2CP}";
+        }
+
+        // Update weapon button availability
+        UpdateWeaponButtonsAvailability();
+
+        Debug.Log($"[BattleWeaponManager] Player 1 CP: {GameManager.Instance.GetPlayerCP(1)} | Player 2 CP: {GameManager.Instance.GetPlayerCP(2)}");
+    }
+
+    /// <summary>
+    /// Cập nhật trạng thái available/disabled của các weapon button dựa trên CP
+    /// </summary>
+    private void UpdateWeaponButtonsAvailability ()
+    {
+        foreach (var kvp in weaponButtons)
+        {
+            var button = kvp.Value;
+            if (button != null)
+            {
+                button.UpdateAvailability();
+            }
         }
     }
 }

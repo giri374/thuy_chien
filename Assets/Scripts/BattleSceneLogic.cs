@@ -48,6 +48,9 @@ public class BattleSceneLogic : MonoBehaviour
         ? GameManager.Instance.gameMode
         : GameMode.PlayWithBot;
 
+    // ── Weapon System ──────────────────────────────────────────
+    private WeaponType lastUsedWeapon = WeaponType.NormalShot;
+
     public delegate void TurnChangedHandler (Turn currentTurn, GameMode gameMode);
     public delegate void PassAndPlayNeededHandler (Turn nextTurn);
     public delegate void GameOverHandler (bool player1Won, GameMode gameMode);
@@ -172,6 +175,9 @@ public class BattleSceneLogic : MonoBehaviour
     /// </summary>
     private async void CreateAndExecuteAttackCommandAsync (WeaponType weaponType, Vector2Int position, Turn attacker)
     {
+        // Store weapon type for result handling
+        lastUsedWeapon = weaponType;
+
         // Create the command (immutable input data)
         IAttackCommand command = new AttackCommand(weaponType, position, attacker);
 
@@ -189,6 +195,9 @@ public class BattleSceneLogic : MonoBehaviour
     /// </summary>
     public async void ExecuteBotAttackCommand (WeaponType weaponType, Vector2Int position)
     {
+        // Store weapon type for result handling
+        lastUsedWeapon = weaponType;
+
         // Create the command with bot (Player 2) as attacker
         IAttackCommand command = new AttackCommand(weaponType, position, Turn.Player2);
 
@@ -214,6 +223,24 @@ public class BattleSceneLogic : MonoBehaviour
         // Determine which player attacked based on the current turn
         bool isPlayer1Attacking = currentTurn == Turn.Player1;
         GridManager targetGrid = isPlayer1Attacking ? player2Grid : player1Grid;
+        int attackerIndex = isPlayer1Attacking ? 1 : 2;
+
+        // Add/Subtract CP based on weapon used
+        if (lastUsedWeapon == WeaponType.NormalShot)
+        {
+            // NormalShot gives +1 CP on each attack
+            GameManager.Instance.AddCP(attackerIndex, 1);
+        }
+        else
+        {
+            // Subtract CP cost for special weapons
+            int cpCost = GetWeaponCPCost(lastUsedWeapon);
+            if (cpCost > 0)
+            {
+                GameManager.Instance.SubtractCP(attackerIndex, cpCost);
+                Debug.Log($"[BattleSceneLogic] Player {attackerIndex} used {lastUsedWeapon}, cost: {cpCost} CP");
+            }
+        }
 
         // Check if any ships were sunk
         CheckSunkShips(targetGrid);
@@ -234,6 +261,12 @@ public class BattleSceneLogic : MonoBehaviour
         {
             Debug.Log($"[BattleSceneLogic] Bonus turn for {currentTurn}!");
         }
+
+        // Reset weapon to NormalShot after attack
+        if (BattleWeaponManager.Instance != null)
+        {
+            BattleWeaponManager.Instance.SelectWeapon(WeaponType.NormalShot);
+        }
     }
 
     /// <summary>
@@ -243,6 +276,23 @@ public class BattleSceneLogic : MonoBehaviour
     /// </summary>
     private void HandleBotAttackResult (CellAttackResult result)
     {
+        // Add/Subtract CP based on weapon used
+        if (lastUsedWeapon == WeaponType.NormalShot)
+        {
+            // NormalShot gives +1 CP on each attack
+            GameManager.Instance.AddCP(2, 1);
+        }
+        else
+        {
+            // Subtract CP cost for special weapons
+            int cpCost = GetWeaponCPCost(lastUsedWeapon);
+            if (cpCost > 0)
+            {
+                GameManager.Instance.SubtractCP(2, cpCost);
+                Debug.Log($"[BattleSceneLogic] Bot used {lastUsedWeapon}, cost: {cpCost} CP");
+            }
+        }
+
         // Check if player 1's ships are sunk
         CheckSunkShips(player1Grid);
 
@@ -271,7 +321,7 @@ public class BattleSceneLogic : MonoBehaviour
     {
         if (gameMode == GameMode.PlayWithFriend && currentTurn == Turn.Player2)
         {
-            HandleAttack(cell, player1Grid, isPlayer1Attacking: false);
+            HandleAttack(cell, isPlayer1Attacking: false);
         }
     }
 
@@ -279,11 +329,11 @@ public class BattleSceneLogic : MonoBehaviour
     {
         if (currentTurn == Turn.Player1)
         {
-            HandleAttack(cell, player2Grid, isPlayer1Attacking: true);
+            HandleAttack(cell, isPlayer1Attacking: true);
         }
     }
 
-    private void HandleAttack (Cell cell, GridManager targetGrid, bool isPlayer1Attacking)
+    private void HandleAttack (Cell cell, bool isPlayer1Attacking)
     {
         if (currentState != GameState.Playing)
         {
@@ -298,8 +348,15 @@ public class BattleSceneLogic : MonoBehaviour
         // Determine the attacker based on the current turn
         Turn attacker = isPlayer1Attacking ? Turn.Player1 : Turn.Player2;
 
-        // Create and execute the attack command with default NormalShot weapon
-        CreateAndExecuteAttackCommandAsync(WeaponType.NormalShot, cell.gridPosition, attacker);
+        // Get the selected weapon from BattleWeaponManager
+        WeaponType weaponToUse = WeaponType.NormalShot;
+        if (BattleWeaponManager.Instance != null)
+        {
+            weaponToUse = BattleWeaponManager.Instance.GetCurrentWeapon();
+        }
+
+        // Create and execute the attack command with the selected weapon
+        CreateAndExecuteAttackCommandAsync(weaponToUse, cell.gridPosition, attacker);
     }
 
     private void SwitchTurn ()
@@ -332,6 +389,20 @@ public class BattleSceneLogic : MonoBehaviour
     public void OnPassAndPlayReady ()
     {
         onTurnChanged?.Invoke(currentTurn, gameMode);
+    }
+
+    /// <summary>
+    /// Get CP cost of a weapon from the weapon list data
+    /// </summary>
+    private int GetWeaponCPCost (WeaponType weaponType)
+    {
+        if (GameManager.Instance?.weaponListData == null)
+        {
+            return 0;
+        }
+
+        var weaponData = GameManager.Instance.weaponListData.GetWeaponByType(weaponType);
+        return weaponData?.cpCost ?? 0;
     }
 
     private void CheckSunkShips (GridManager grid)

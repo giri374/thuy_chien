@@ -18,22 +18,28 @@ public class BattleWeaponButton : MonoBehaviour
     // Visual state tracking
     private Color selectedColor = Color.green;
     private Color normalColor = Color.white;
+    private Color disabledColor = Color.gray;
 
     private WeaponType weaponType;
+    private WeaponData currentWeaponData;
+    private int playerIndex;
     private Action<WeaponType> onWeaponSelected;
     private bool isSelected = false;
 
     /// <summary>
     /// Setup button với dữ liệu vũ khí
     /// </summary>
-    public void Setup (WeaponType type, WeaponData weaponData, Action<WeaponType> onSelected)
+    public void Setup (WeaponType type, WeaponData weaponData, Action<WeaponType> onSelected, int currentPlayerIndex = 1)
     {
         weaponType = type;
+        currentWeaponData = weaponData;
+        playerIndex = currentPlayerIndex;
         onWeaponSelected = onSelected;
         isSelected = false;
 
         UpdateUI(weaponData);
         SetupButton();
+        UpdateAvailability();
     }
 
     private void UpdateUI (WeaponData weaponData)
@@ -104,8 +110,49 @@ public class BattleWeaponButton : MonoBehaviour
 
     private void OnButtonClicked ()
     {
+        // Check CP trước khi select
+        if (!CanSelectWeapon())
+        {
+            Debug.LogWarning($"[BattleWeaponButton] Player {playerIndex} không đủ CP để sử dụng {weaponType}");
+            return;
+        }
+
         isSelected = true;
+        Debug.Log($"[BattleWeaponButton] Player {playerIndex} selected weapon: {weaponType}");
         UpdateVisuals();
         onWeaponSelected?.Invoke(weaponType);
+    }
+
+    /// <summary>
+    /// Check xem có thể select vũ khí không (kiểm tra CP)
+    /// </summary>
+    private bool CanSelectWeapon ()
+    {
+        // NormalShot không cần CP cost
+        if (weaponType == WeaponType.NormalShot)
+        {
+            return true;
+        }
+
+        // Check CP cho vũ khí khác
+        if (currentWeaponData == null || GameManager.Instance == null)
+        {
+            return false;
+        }
+
+        int playerCP = GameManager.Instance.GetPlayerCP(playerIndex);
+        return playerCP >= currentWeaponData.cpCost;
+    }
+
+    /// <summary>
+    /// Update availability (enabled/disabled) dựa trên CP hiện tại
+    /// </summary>
+    public void UpdateAvailability ()
+    {
+        bool canSelect = CanSelectWeapon();
+        if (selectButton != null)
+        {
+            selectButton.interactable = canSelect;
+        }
     }
 }
