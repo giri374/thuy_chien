@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Core.Models;
 using UnityEngine;
 
@@ -36,6 +37,10 @@ public class BattleSceneLogic : MonoBehaviour
     [Header("Bot (chỉ dùng khi PlayWithBot)")]
     public BotController botController;
 
+    [Header("Command System")]
+    private AttackCommandHistory commandHistory;
+    private AttackCommandExecutor commandExecutor;
+
     public GameState currentState = GameState.Playing;
     public Turn currentTurn = Turn.Player1;
 
@@ -43,23 +48,38 @@ public class BattleSceneLogic : MonoBehaviour
         ? GameManager.Instance.gameMode
         : GameMode.PlayWithBot;
 
-    public delegate void TurnChangedHandler(Turn currentTurn, GameMode gameMode);
-    public delegate void PassAndPlayNeededHandler(Turn nextTurn);
-    public delegate void GameOverHandler(bool player1Won, GameMode gameMode);
+    public delegate void TurnChangedHandler (Turn currentTurn, GameMode gameMode);
+    public delegate void PassAndPlayNeededHandler (Turn nextTurn);
+    public delegate void GameOverHandler (bool player1Won, GameMode gameMode);
 
     public event TurnChangedHandler onTurnChanged;
     public event PassAndPlayNeededHandler onPassAndPlayNeeded;
     public event GameOverHandler onGameOver;
 
-    private void Awake()
+    private void Awake ()
     {
         Instance = this;
+
+        // Initialize command system
+        commandHistory = new AttackCommandHistory();
+
+        // Create and initialize the executor
+        if (commandExecutor == null)
+        {
+            commandExecutor = gameObject.AddComponent<AttackCommandExecutor>();
+        }
     }
 
-    private void Start()
+    private void Start ()
     {
         SetupBotIfNeeded();
         LoadAllShips();
+
+        // Initialize command executor with grid references
+        if (commandExecutor != null)
+        {
+            commandExecutor.Initialize(player1Grid, player2Grid);
+        }
 
         currentTurn = Turn.Player1;
         onTurnChanged?.Invoke(currentTurn, gameMode);
@@ -67,7 +87,7 @@ public class BattleSceneLogic : MonoBehaviour
         Debug.Log($"[BattleSceneManager] Game started | Mode: {gameMode}");
     }
 
-    private void SetupBotIfNeeded()
+    private void SetupBotIfNeeded ()
     {
         if (gameMode != GameMode.PlayWithBot)
         {
@@ -105,7 +125,7 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    private void LoadShipsFromData(List<GameManager.ShipPlacementData> placements, GridManager grid)
+    private void LoadShipsFromData (List<GameManager.ShipPlacementData> placements, GridManager grid)
     {
         if (placements == null || grid == null)
         {
@@ -145,7 +165,109 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    public void OnPlayer1GridCellClicked(Cell cell)
+    /// <summary>
+    /// Creates an attack command and executes it asynchronously.
+    /// This is the main entry point for all attack actions (player and bot).
+    /// The result is handled via the callback, which then invokes the normal game flow logic.
+    /// </summary>
+    private async void CreateAndExecuteAttackCommandAsync (WeaponType weaponType, Vector2Int position, Turn attacker)
+    {
+        // Create the command (immutable input data)
+        IAttackCommand command = new AttackCommand(weaponType, position, attacker);
+
+        // Record the command in history for replays and network sync
+        commandHistory.RecordCommand(command);
+
+        // Execute the command asynchronously
+        await commandExecutor.ExecuteAsync(command, HandleAttackResult);
+    }
+
+    /// <summary>
+    /// Public method for BotController to execute an attack command.
+    /// This is called from BotController.ProcessTurn() after selecting a target position.
+    /// The bot-specific logic (adding neighbors on hit) is handled here before executing the command.
+    /// </summary>
+    public async void ExecuteBotAttackCommand (WeaponType weaponType, Vector2Int position)
+    {
+        // Create the command with bot (Player 2) as attacker
+        IAttackCommand command = new AttackCommand(weaponType, position, Turn.Player2);
+
+        // Record the command in history
+        commandHistory.RecordCommand(command);
+
+        // Execute the command with a special callback for bot result handling
+        await commandExecutor.ExecuteAsync(command, HandleBotAttackResult);
+    }
+
+    /// <summary>
+    /// Callback handler for attack command results.
+    /// This is called after a command executes and handles the game logic response
+    /// (checking for sinks, switching turns, etc.)
+    /// </summary>
+    private void HandleAttackResult (CellAttackResult result)
+    {
+        if (currentState != GameState.Playing)
+        {
+            return;
+        }
+
+        // Determine which player attacked based on the current turn
+        bool isPlayer1Attacking = currentTurn == Turn.Player1;
+        GridManager targetGrid = isPlayer1Attacking ? player2Grid : player1Grid;
+
+        // Check if any ships were sunk
+        CheckSunkShips(targetGrid);
+
+        // Check if all ships in target grid are sunk - if so, game over
+        if (targetGrid.AllShipsSunk())
+        {
+            EndGame(player1Won: isPlayer1Attacking);
+            return;
+        }
+
+        // Handle turn logic: miss = switch turn, hit = bonus turn
+        if (!result.WasHit)
+        {
+            SwitchTurn();
+        }
+        else
+        {
+            Debug.Log($"[BattleSceneLogic] Bonus turn for {currentTurn}!");
+        }
+    }
+
+    /// <summary>
+    /// Special callback handler for bot attack results.
+    /// Handles bot-specific logic like adding neighbors to target list on hit.
+    /// This replaces the old OnBotFinishedTurn method.
+    /// </summary>
+    private void HandleBotAttackResult (CellAttackResult result)
+    {
+        // Check if player 1's ships are sunk
+        CheckSunkShips(player1Grid);
+
+        if (player1Grid.AllShipsSunk())
+        {
+            EndGame(player1Won: false);
+            return;
+        }
+
+        if (result.WasHit)
+        {
+            // Add neighboring cells to bot's target list for next attack
+            botController?.AddNeighborsToTargets(result.Position);
+
+            // Bot gets a bonus turn on hit
+            botController?.MakeTurn();
+        }
+        else
+        {
+            // Miss means switch turn
+            SwitchTurn();
+        }
+    }
+
+    public void OnPlayer1GridCellClicked (Cell cell)
     {
         if (gameMode == GameMode.PlayWithFriend && currentTurn == Turn.Player2)
         {
@@ -153,7 +275,7 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    public void OnPlayer2GridCellClicked(Cell cell)
+    public void OnPlayer2GridCellClicked (Cell cell)
     {
         if (currentTurn == Turn.Player1)
         {
@@ -161,7 +283,7 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    private void HandleAttack(Cell cell, GridManager targetGrid, bool isPlayer1Attacking)
+    private void HandleAttack (Cell cell, GridManager targetGrid, bool isPlayer1Attacking)
     {
         if (currentState != GameState.Playing)
         {
@@ -173,49 +295,14 @@ public class BattleSceneLogic : MonoBehaviour
             return;
         }
 
-        var hit = targetGrid.AttackCell(cell.gridPosition);
-        var attacker = isPlayer1Attacking ? "Player 1" : "Player 2";
-        Debug.Log($"[BattleSceneManager] {attacker} attacks {cell.gridPosition}: {(hit ? "HIT" : "MISS")}");
+        // Determine the attacker based on the current turn
+        Turn attacker = isPlayer1Attacking ? Turn.Player1 : Turn.Player2;
 
-        CheckSunkShips(targetGrid);
-
-        if (targetGrid.AllShipsSunk())
-        {
-            EndGame(player1Won: isPlayer1Attacking);
-            return;
-        }
-
-        if (!hit)
-        {
-            SwitchTurn();
-        }
-        else
-        {
-            Debug.Log("Bonus turn!");
-        }
+        // Create and execute the attack command with default NormalShot weapon
+        CreateAndExecuteAttackCommandAsync(WeaponType.NormalShot, cell.gridPosition, attacker);
     }
 
-    public void OnBotFinishedTurn(bool hit)
-    {
-        CheckSunkShips(player1Grid);
-
-        if (player1Grid.AllShipsSunk())
-        {
-            EndGame(player1Won: false);
-            return;
-        }
-
-        if (hit)
-        {
-            botController.MakeTurn();
-        }
-        else
-        {
-            SwitchTurn();
-        }
-    }
-
-    private void SwitchTurn()
+    private void SwitchTurn ()
     {
         if (gameMode == GameMode.PlayWithBot)
         {
@@ -242,12 +329,12 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    public void OnPassAndPlayReady()
+    public void OnPassAndPlayReady ()
     {
         onTurnChanged?.Invoke(currentTurn, gameMode);
     }
 
-    private void CheckSunkShips(GridManager grid)
+    private void CheckSunkShips (GridManager grid)
     {
         var board = grid.GetBoard();
         if (board == null)
@@ -276,7 +363,7 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    private async void EndGame(bool player1Won)
+    private async void EndGame (bool player1Won)
     {
         currentState = GameState.GameOver;
 

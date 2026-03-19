@@ -153,38 +153,12 @@ public class BotController : MonoBehaviour
             yield break;
         }
 
-        // Tấn công
-        var hit = targetGrid.AttackCell(targetPos);
-        Debug.Log($"Bot attacks {targetPos}: {(hit ? "HIT" : "MISS")}");
+        // Execute attack using the command system
+        // Bot attacks with NormalShot weapon by default
+        BattleSceneLogic.Instance.ExecuteBotAttackCommand(WeaponType.NormalShot, targetPos);
 
-        // Nếu bắn trúng, thêm các ô xung quanh vào danh sách tiềm năng
-        if (hit)
-        {
-            AddNeighborsToTargets(targetPos);
-
-            // Bot được bắn tiếp nếu trúng? 
-            // Tùy luật game. Nếu luật là "trúng được bắn tiếp", gọi MakeTurn() tiếp.
-            // Nếu luật là lượt đổi, thì thôi.
-            // BattleSceneLogic đang xử lý logic lượt, ở đây ta chỉ bắn 1 phát rồi callback?
-            // Hiện tại BattleSceneLogic gọi EnemyTurn -> bắn 1 phát -> check sunk -> nếu hit thì gọi EnemyTurn tiếp.
-            // Nên ta chỉ cần thực hiện 1 cú bắn và Logic game loop sẽ lo phần còn lại.
-
-            // Update: BattleSceneLogic sẽ kiểm tra kết quả attack.
-        }
-
-        // Báo cho BattleSceneLogic biết bot đã bắn xong?
-        // Hiện tại BattleSceneLogic gọi EnemyTurn và không chờ return.
-        // Nhưng GridManager.AttackCell đã kích hoạt event/log state.
-
-        // Cần gọi callback để BattleSceneLogic xử lý tiếp (CheckSunk, SwitchTurn...)
-        // Vì logic game loop đang nằm cứng trong BattleSceneLogic, ta cần call ngược lại
-        // hoặc BattleSceneLogic quan sát Grid.
-
-        // Cách tốt nhất: BotController bắn xong -> BattleSceneLogic kiểm tra kết quả.
-        // Nhưng BotController chạy Coroutine (async).
-        // => Cần event hoặc callback.
-
-        BattleSceneLogic.Instance.OnBotFinishedTurn(hit);
+        // Note: The result handling is now done via HandleAttackResult callback in BattleSceneLogic
+        // We don't call OnBotFinishedTurn anymore from here
     }
 
     private Vector2Int GetRandomCell ()
@@ -204,7 +178,7 @@ public class BotController : MonoBehaviour
         return new Vector2Int(x, y);
     }
 
-    private void AddNeighborsToTargets (Vector2Int pos)
+    public void AddNeighborsToTargets (Vector2Int pos)
     {
         Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
 
