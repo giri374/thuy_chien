@@ -140,10 +140,4 @@ public class SetupSceneUIManager : MonoBehaviour
         SceneManager.LoadScene(SceneNames.Battle);
     }
 
-    // ── Cell Click Callback (từ GridManager) ──────────────────
-
-    public void OnPlayerGridCellClicked (Cell cell)
-    {
-        Debug.Log($"[SetupSceneManager] Cell clicked: {cell.gridPosition}");
-    }
 }

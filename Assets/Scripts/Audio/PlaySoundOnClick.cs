@@ -11,7 +11,7 @@ public class PlaySoundOnClick : MonoBehaviour
 
     private void Start ()
     {
-        var allButtons = FindObjectsOfType<Button>();
+        var allButtons = FindObjectsByType<Button>(FindObjectsSortMode.None);
 
         foreach (var btn in allButtons)
         {

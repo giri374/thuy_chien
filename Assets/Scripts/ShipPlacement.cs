@@ -138,13 +138,14 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         transform.position = snappedWorld;
     }
 
-    private bool TryPlaceAtCurrentSnap ()
+    private bool TryPlaceAtCurrentSnap()
     {
         if (gridManager == null)
         {
             return false;
         }
 
+        // Use Board logic from GridManager
         if (!gridManager.CanPlaceShip(ship, currentSnapPos))
         {
             return false;
@@ -184,21 +185,15 @@ public class ShipPlacement : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         }
     }
 
-    private void RemoveShipFromGrid ()
+    private void RemoveShipFromGrid()
     {
         if (ship?.occupiedCells == null)
         {
             return;
         }
 
-        foreach (var cell in ship.occupiedCells)
-        {
-            cell?.SetOccupyingShip(null);
-        }
-
-        ship.occupiedCells.Clear();
-        gridManager?.ships.Remove(ship);
-
+        // Use GridManager's Board reference
+        gridManager?.RemoveShip(ship);
         isPlaced = false;
     }
 

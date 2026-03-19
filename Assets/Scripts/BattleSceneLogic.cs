@@ -1,16 +1,18 @@
 using System.Collections.Generic;
+using Core.Models;
 using UnityEngine;
+
 public enum Turn
 {
-    Player1,    // Lượt người chơi 1 (hoặc người chơi duy nhất khi vs Bot)
-    Player2   // Lượt người chơi 2 (hoặc Bot)
+    Player1,
+    Player2
 }
 
 public enum GameState
 {
-    Setup,      // SetupScene - đang sắp xếp tàu
-    Playing,    // BattleScene - đang chơi
-    GameOver    // Kết thúc
+    Setup,
+    Playing,
+    GameOver
 }
 
 public enum WeaponType
@@ -23,25 +25,16 @@ public enum WeaponType
     AntiAircraft
 }
 
-/// <summary>
-/// Quản lý toàn bộ logic game trong BattleScene.
-/// Hỗ trợ cả PlayWithBot (Player vs AI) và PlayWithFriend (Player 1 vs Player 2).
-/// UI được tách riêng thành BattleUIManager.
-/// </summary>
 public class BattleSceneLogic : MonoBehaviour
 {
     public static BattleSceneLogic Instance { get; private set; }
 
-    // ── Inspector ─────────────────────────────────────────────
-
     [Header("Grid References")]
-    public GridManager player1Grid;   // Lưới của Player 1
-    public GridManager player2Grid;   // Lưới của Player 2 (hoặc Bot)
+    public GridManager player1Grid;
+    public GridManager player2Grid;
 
     [Header("Bot (chỉ dùng khi PlayWithBot)")]
     public BotController botController;
-
-    // ── State ─────────────────────────────────────────────────
 
     public GameState currentState = GameState.Playing;
     public Turn currentTurn = Turn.Player1;
@@ -50,24 +43,20 @@ public class BattleSceneLogic : MonoBehaviour
         ? GameManager.Instance.gameMode
         : GameMode.PlayWithBot;
 
-    // ── Events ────────────────────────────────────────────────
-
-    public delegate void TurnChangedHandler (Turn currentTurn, GameMode gameMode);
-    public delegate void PassAndPlayNeededHandler (Turn nextTurn);
-    public delegate void GameOverHandler (bool player1Won, GameMode gameMode);
+    public delegate void TurnChangedHandler(Turn currentTurn, GameMode gameMode);
+    public delegate void PassAndPlayNeededHandler(Turn nextTurn);
+    public delegate void GameOverHandler(bool player1Won, GameMode gameMode);
 
     public event TurnChangedHandler onTurnChanged;
     public event PassAndPlayNeededHandler onPassAndPlayNeeded;
     public event GameOverHandler onGameOver;
 
-    // ── Lifecycle ─────────────────────────────────────────────
-
-    private void Awake ()
+    private void Awake()
     {
         Instance = this;
     }
 
-    private void Start ()
+    private void Start()
     {
         SetupBotIfNeeded();
         LoadAllShips();
@@ -78,9 +67,7 @@ public class BattleSceneLogic : MonoBehaviour
         Debug.Log($"[BattleSceneManager] Game started | Mode: {gameMode}");
     }
 
-    // ── Setup ─────────────────────────────────────────────────
-
-    private void SetupBotIfNeeded ()
+    private void SetupBotIfNeeded()
     {
         if (gameMode != GameMode.PlayWithBot)
         {
@@ -114,12 +101,11 @@ public class BattleSceneLogic : MonoBehaviour
         }
         else
         {
-            // PlayWithFriend: load Player 2 từ GameManager
             LoadShipsFromData(GameManager.Instance?.GetPlacements(2), player2Grid);
         }
     }
 
-    private void LoadShipsFromData (List<GameManager.ShipPlacementData> placements, GridManager grid)
+    private void LoadShipsFromData(List<GameManager.ShipPlacementData> placements, GridManager grid)
     {
         if (placements == null || grid == null)
         {
@@ -159,30 +145,23 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    // ── Cell Click Callbacks (gọi từ GridManager) ────────────
-
-    public void OnPlayer1GridCellClicked (Cell cell)
+    public void OnPlayer1GridCellClicked(Cell cell)
     {
-        // PlayWithFriend: Player 2 tấn công lưới Player 1
         if (gameMode == GameMode.PlayWithFriend && currentTurn == Turn.Player2)
         {
             HandleAttack(cell, player1Grid, isPlayer1Attacking: false);
         }
-        // PlayWithBot: Bot tự động, không cho click vào lưới Player 1
     }
 
-    public void OnPlayer2GridCellClicked (Cell cell)
+    public void OnPlayer2GridCellClicked(Cell cell)
     {
-        // Player 1 luôn tấn công lưới Player 2 (cả 2 mode)
         if (currentTurn == Turn.Player1)
         {
             HandleAttack(cell, player2Grid, isPlayer1Attacking: true);
         }
     }
 
-    // ── Attack Logic ──────────────────────────────────────────
-
-    private void HandleAttack (Cell cell, GridManager targetGrid, bool isPlayer1Attacking)
+    private void HandleAttack(Cell cell, GridManager targetGrid, bool isPlayer1Attacking)
     {
         if (currentState != GameState.Playing)
         {
@@ -216,12 +195,7 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    // ── Bot Callback ──────────────────────────────────────────
-
-    /// <summary>
-    /// BotController gọi hàm này sau khi bot bắn xong
-    /// </summary>
-    public void OnBotFinishedTurn (bool hit)
+    public void OnBotFinishedTurn(bool hit)
     {
         CheckSunkShips(player1Grid);
 
@@ -233,7 +207,7 @@ public class BattleSceneLogic : MonoBehaviour
 
         if (hit)
         {
-            botController.MakeTurn(); // Bonus turn cho bot
+            botController.MakeTurn();
         }
         else
         {
@@ -241,9 +215,7 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    // ── Turn Management ───────────────────────────────────────
-
-    private void SwitchTurn ()
+    private void SwitchTurn()
     {
         if (gameMode == GameMode.PlayWithBot)
         {
@@ -255,7 +227,7 @@ public class BattleSceneLogic : MonoBehaviour
                 botController?.MakeTurn();
             }
         }
-        else // PlayWithFriend
+        else
         {
             if (currentTurn == Turn.Player1)
             {
@@ -270,35 +242,46 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
-    // ── Pass & Play Callback (PlayWithFriend) ────────────────
-
-    public void OnPassAndPlayReady ()
+    public void OnPassAndPlayReady()
     {
         onTurnChanged?.Invoke(currentTurn, gameMode);
     }
 
-    // ── Helpers ───────────────────────────────────────────────
-
-    private void CheckSunkShips (GridManager grid)
+    private void CheckSunkShips(GridManager grid)
     {
-        foreach (var ship in grid.ships)
+        var board = grid.GetBoard();
+        if (board == null)
         {
-            if (ship != null && ship.IsSunk())
+            return;
+        }
+
+        var allShips = board.GetAllShips();
+        foreach (var shipInstance in allShips)
+        {
+            if (shipInstance.IsSunk)
             {
-                grid.MarkAdjacentCellsEmpty(ship);
+                foreach (var cellPos in shipInstance.occupiedCells)
+                {
+                    board.MarkAdjacentEmpty(cellPos);
+                }
+
+                var legacyShip = grid.ships.Find(s => s != null && s.shipData != null && s.shipData.shipID == shipInstance.shipId);
+                if (legacyShip != null)
+                {
+                    legacyShip.SetVisible(true);
+                }
+
+                grid.GetGridView().SyncFromBoard();
             }
         }
     }
 
-    // ── Game Over Handler ────────────────────────────────────
-
-    private async void EndGame (bool player1Won)
+    private async void EndGame(bool player1Won)
     {
         currentState = GameState.GameOver;
 
         Debug.Log($"[BattleSceneManager] Game Over — {(player1Won ? "Player 1 won" : "Player 2/Bot won")}");
 
-        // ── Reward EXP & Gold ──────────────────────────────────────
         if (ProgressManager.Instance != null && ProgressManager.Instance.IsReady)
         {
             if (player1Won)
@@ -317,7 +300,6 @@ public class BattleSceneLogic : MonoBehaviour
             await ProgressManager.Instance.SaveProgress();
         }
 
-        // ── Notify UI ──────────────────────────────────────────────
         onGameOver?.Invoke(player1Won, gameMode);
     }
 }

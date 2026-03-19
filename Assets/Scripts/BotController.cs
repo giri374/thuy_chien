@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Core.Models;
 using UnityEngine;
 
 public class BotController : MonoBehaviour
@@ -198,7 +199,7 @@ public class BotController : MonoBehaviour
             y = Random.Range(0, targetGrid.gridHeight);
             maxTries--;
         }
-        while (targetGrid.GetCell(x, y).cellState != CellState.Unknown && maxTries > 0);
+        while (targetGrid.GetCell(x, y) != null && targetGrid.GetCell(x, y).cellState != CellState.Unknown && maxTries > 0);
 
         return new Vector2Int(x, y);
     }

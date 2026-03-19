@@ -1,35 +1,19 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-/// <summary>
-/// Singleton tồn tại xuyên suốt toàn bộ game (DontDestroyOnLoad).
-/// Lưu trữ GameMode, currentSetupPlayer, và ship placement data của cả hai người chơi.
-/// </summary>
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    // ── Game Mode ─────────────────────────────────────────────
-
     public GameMode gameMode { get; private set; } = GameMode.PlayWithBot;
-
-    /// <summary>
-    /// Player đang trong quá trình Setup (1 hoặc 2).
-    /// SetupSceneUIManager đọc giá trị này để biết đang setup cho ai.
-    /// </summary>
+    public GameMap gameMap { get; private set; } = GameMap.NormalMap;
     public int currentSetupPlayer { get; private set; } = 1;
-
-    // ── Ship Data ─────────────────────────────────────────────
 
     [Header("Ship Data")]
     public ShipListData shipListData;
 
-    // ── Placement Data ────────────────────────────────────────
-
     public static List<ShipPlacementData> player1Placements = new List<ShipPlacementData>();
     public static List<ShipPlacementData> player2Placements = new List<ShipPlacementData>();
-
-    // ── Lifecycle ─────────────────────────────────────────────
 
     private void Awake()
     {
@@ -44,8 +28,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // ── Mode API ──────────────────────────────────────────────
-
     public void SetGameMode(GameMode mode)
     {
         gameMode = mode;
@@ -53,13 +35,17 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] GameMode = {mode}");
     }
 
+    public void SetGameMap(GameMap map)
+    {
+        gameMap = map;
+        Debug.Log($"[GameManager] GameMap = {map}");
+    }
+
     public void SetCurrentSetupPlayer(int playerIndex)
     {
         currentSetupPlayer = playerIndex;
         Debug.Log($"[GameManager] currentSetupPlayer = {playerIndex}");
     }
-
-    // ── Placement API ─────────────────────────────────────────
 
     public void SavePlacement(int playerIndex, Ship ship)
     {
@@ -89,8 +75,6 @@ public class GameManager : MonoBehaviour
     {
         return playerIndex == 1 ? player1Placements : player2Placements;
     }
-
-    // ── Nested Data Class ─────────────────────────────────────
 
     [System.Serializable]
     public class ShipPlacementData

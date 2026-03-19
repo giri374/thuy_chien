@@ -1,0 +1,42 @@
+## Chế độ Advanced
+Ở Menu Scene có thêm nút chọn Map
+public enum WeaponType
+{
+ NormalMap,
+ AdvancedMap
+}
+Khi chọn Advanced Map, sau SetupScene sẽ đến WeaponSetupScene.
+WeaponSetupScene:
+Ở WeaponSetupScene, trên màn hình có 5 button của 5 vũ khí.
+Set currentGold = GOLD của người chơi.
+Người chơi dùng currentGOLD để trả tiền cho những loại   vũ khí được mang vào màn chơi.
+BattleScene:
+Nhận được 1 điểm tài nguyên (CP: combat power) sau mỗi lượt tấn công thường (NormalShot), bất kể trượt hay trúng.
+
+Trên màn hình, có WeaponUIPanel của 2 người chơi (biến isPlayer1). Trên WeaponUIPanel liệt kê 6 Button. Khi nhấn một button, nếu đủ điểm tài nguyên và có thể sử dụng vũ khí, thực hiện setCurrentWeapon.
+Khi hover trên lưới địch, set tất cả cell chịu ảnh hưởng của weapon thành previewSprite. 
+Khi nhấn vào lưới địch, thực hiện Attack với weapon đó, sau đó trừ điểm tài nguyên. 
+
+Nếu thực hiện tấn công trúng tàu, xác nhận lượt đó là trúng và vẫn được thêm lượt như NormalShot.
+Nếu không chọn vũ khí/ chơi ở chế độ NormalMap, tấn công sẽ mặc định là NormalShot.
+
+Một vũ khí sẽ cần các biến và hàm sau: 
+biến weaponId, goldCost, CPCost
+effectPrefab 
+Hàm Execute()
+
+(1) Nuclear bomb: tấn công toàn bộ 5x5 ô với tâm là vị trí cell được chọn - 7 CP 
+(2) Bomber: tấn công toàn bộ một đường hàng ngang tính từ vị trí được chọn - 5 CP 
+(3) Torpedoes: duyệt một đường hàng ngang tính từ vị trí được chọn và tấn công vào vị trí có tàu đầu tiên - 3 CP
+(4) Radar: duyệt một 3x3 ô với tâm là vị trí cell được chọn, hiển thị các vị trí có tàu - 3 CP
+(5) Anti-aircraft missile: đánh dấu 3x3 ô tính từ vị trí được chọn, khi (1), (2), (3) tấn công đến 1 trong các vị trí này, vô hiệu hóa đối tượng tấn công trong lượt đó. - 3 CP
+
+public enum WeaponType
+{
+    NormalShot,
+    NuclearBomb,
+    Bomber,
+    Torpedoes,
+    Radar,
+    AntiAircraft
+}

@@ -1,0 +1,37 @@
+Hiện tại, tôi sử dụng hệ thống Cell và Grid khá phụ thuộc UI, không tập trung vào 1 code logic chung.
+
+Hãy tạo các thành phần Core chứa các class không kế thừa MonoBehaviour, chỉ dùng struct + class thông thường, lưu trữ dữ liệu của Cell, Grid và Ship. Làm sao cho các dữ liệu này tách biệt với UI và có thể gửi đi trong chế độ multiplayer online. Đồng thời viết thêm mapping View ↔ Core.
+
+GridManager (chỉ là View): tạo CellData → render sprite/animation.
+BattleSceneLogic thay vì dùng GridManager trực tiếp → dùng 2 Board:
+"private Board player1Board = new Board();
+private Board player2Board = new Board();"
+
+
+Example code: đọc để tham khảo cấu trúc, nhưng hãy chỉnh sửa cho phù hợp dự án hiện tại.
+// CellData.cs
+[Serializable]
+public struct CellData
+{
+    public Vector2Int position;
+    public CellState state;           // Unknown / Empty / Hit
+    public int shipId;                // -1 nếu không có tàu
+    public bool isSunk;               // chỉ dùng để sync
+}
+
+
+// Board.cs (pure logic)
+public class Board
+{
+    private CellData[,] cells = new CellData[10,10];
+    private List<ShipData> ships = new List<ShipData>();
+
+    public string ToJson() => JsonUtility.ToJson(this);           // hoặc Newtonsoft
+    public static Board FromJson(string json) => ...
+
+    public bool Attack(Vector2Int pos) { ... }                    // trả về hit/miss
+    public List<Vector2Int> AttackMultiple(List<Vector2Int> positions) { ... } // salvo
+    public List<Vector2Int> GetCellsWithShips() { ... }           // duyệt nhanh (O(1) nếu cache)
+    public bool AllShipsSunk() { ... }
+    public void MarkAdjacentEmpty(Vector2Int pos) { ... }
+}

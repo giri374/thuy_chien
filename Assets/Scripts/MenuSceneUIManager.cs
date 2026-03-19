@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-
 /// <summary>
 /// Quản lý MenuScene.
 /// Gán các Button trong Inspector để kết nối với các hàm bên dưới.
@@ -11,6 +10,13 @@ public class MenuSceneUIManager : MonoBehaviour
     [Header("UI References")]
     public Button playWithBotButton;
     public Button playWithFriendButton;
+
+    [Header("Set Map")]
+    public GameObject setMapPanel;
+    public Button setNormalMapButton;
+    public Button setAdvancedMapButton;
+    public Button setMapCancelButton;
+
 
     // ── Lifecycle ─────────────────────────────────────────────
 
@@ -40,6 +46,19 @@ public class MenuSceneUIManager : MonoBehaviour
         {
             playWithFriendButton.onClick.AddListener(OnPlayWithFriend);
         }
+
+        if (setNormalMapButton != null)
+        {
+            setNormalMapButton.onClick.AddListener(OnSetNormalMap);
+        }
+        if (setAdvancedMapButton != null)
+        {
+            setAdvancedMapButton.onClick.AddListener(OnSetAdvancedMap);
+        }
+        if (setMapCancelButton != null)
+        {
+            setMapCancelButton.onClick.AddListener(OnSetMapCancel);
+        }
     }
 
     // ── Button Callbacks ──────────────────────────────────────
@@ -50,8 +69,8 @@ public class MenuSceneUIManager : MonoBehaviour
     public void OnPlayWithBot ()
     {
         GameManager.Instance.SetGameMode(GameMode.PlayWithBot);
-        // Vào SetupScene cho Player 1, sau đó thẳng vào BattleScene
-        SceneManager.LoadScene(SceneNames.Setup);
+        // Vào WeaponSetupScene Player 1, SetupScene cho Player 1,  sau đó thẳng vào BattleScene
+        setMapPanel.SetActive(true);
     }
 
     /// <summary>
@@ -60,7 +79,45 @@ public class MenuSceneUIManager : MonoBehaviour
     public void OnPlayWithFriend ()
     {
         GameManager.Instance.SetGameMode(GameMode.PlayWithFriend);
-        // Vào SetupScene cho Player 1, sau đó SetupScene Player 2, rồi BattleScene
-        SceneManager.LoadScene(SceneNames.Setup);
+        // Vào WeaponSetupScene Player 1,WeaponSetupScene Player 2, SetupScene cho Player 1, SetupScene Player 2,  rồi mới vào BattleScene
+        setMapPanel.SetActive(true);
     }
+
+    public void OnSetNormalMap ()
+    {
+        GameManager.Instance.SetGameMap(GameMap.NormalMap);
+        GoBattle();
+    }
+    public void OnSetAdvancedMap ()
+    {
+        GameManager.Instance.SetGameMap(GameMap.AdvancedMap);
+        GoBattle();
+    }
+
+    public void OnSetMapCancel ()
+    {
+        setMapPanel.SetActive(false);
+    }
+
+    private void GoBattle ()
+    {
+        // Reset setup players
+        GameManager.Instance.SetCurrentSetupPlayer(1);
+
+        // Nếu AdvancedMap: WeaponSetupScene → SetupScene → BattleScene
+        if (GameManager.Instance.gameMap == GameMap.AdvancedMap)
+        {
+            SceneManager.LoadScene(SceneNames.WeaponSetup);
+        }
+        // Nếu NormalMap: SetupScene → BattleScene
+        else
+        {
+            SceneManager.LoadScene(SceneNames.Setup);
+        }
+    }
+
+
+
+
+
 }
