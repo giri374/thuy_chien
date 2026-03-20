@@ -16,6 +16,9 @@ public class WeaponButton : MonoBehaviour
     public TextMeshProUGUI descriptionText;
     public Button selectButton;
 
+    [Header("Configuration")]
+    public WeaponType assignedWeaponType = WeaponType.NormalShot;
+
     private WeaponData weaponData;
     private Action<WeaponData> onWeaponSelected;
     private Action<WeaponData> onWeaponDeselected;
@@ -31,7 +34,7 @@ public class WeaponButton : MonoBehaviour
         availableGold = gold;
         onWeaponSelected = onSelected;
         onWeaponDeselected = onDeselected;
-        isSelected = false;
+        isSelected = false;  // Reset selected state
 
         UpdateUI();
         SetupButton();
@@ -88,7 +91,7 @@ public class WeaponButton : MonoBehaviour
             var colors = selectButton.colors;
             if (isSelected)
             {
-                colors.normalColor = new Color(0.2f, 0.8f, 0.2f, 1f); // Xanh - được chọn
+                colors.normalColor = new Color(1f, 0.8f, 0f, 1f); // Vàng - được chọn
             }
             else if (!canAfford)
             {
@@ -110,6 +113,11 @@ public class WeaponButton : MonoBehaviour
         isSelected = selected;
         UpdateAvailability(availableGold);
     }
+
+    /// <summary>
+    /// Get loại vũ khí được assign cho button này
+    /// </summary>
+    public WeaponType GetAssignedWeaponType () => assignedWeaponType;
 
     /// <summary>
     /// Get trạng thái selected

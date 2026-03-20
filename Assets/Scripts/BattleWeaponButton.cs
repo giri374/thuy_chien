@@ -16,7 +16,7 @@ public class BattleWeaponButton : MonoBehaviour
     public Button selectButton;
 
     // Visual state tracking
-    private Color selectedColor = Color.green;
+    private Color selectedColor = Color.yellow;
     private Color normalColor = Color.white;
     private Color disabledColor = Color.gray;
 

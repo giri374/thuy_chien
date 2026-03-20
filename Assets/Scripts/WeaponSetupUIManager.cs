@@ -16,13 +16,12 @@ public class WeaponSetupUIManager : MonoBehaviour
     [Header("UI References")]
     public TextMeshProUGUI playerTitleText;
     public TextMeshProUGUI currentGoldText;
-    public Transform weaponButtonContainer;
     public Button confirmButton;
     public Button cancelButton;
     public Button resetButton;
 
-    [Header("Prefab")]
-    public GameObject weaponButtonPrefab;
+    [Header("Weapon Buttons")]
+    public WeaponButton[] weaponButtons;
 
     private int currentPlayer = 1;
     private int currentGold = 0;
@@ -91,7 +90,8 @@ public class WeaponSetupUIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Tạo các nút chọn vũ khí từ WeaponListData (không hiển thị NormalShot - nó được thêm mặc định)
+    /// Setup các nút chọn vũ khí từ inspector (không hiển thị NormalShot - nó được thêm mặc định)
+    /// Tự động match button theo assignedWeaponType, không phụ thuộc vào thứ tự kéo thả
     /// </summary>
     private void CreateWeaponButtons ()
     {
@@ -102,24 +102,27 @@ public class WeaponSetupUIManager : MonoBehaviour
             return;
         }
 
-        // Đảm bảo container có VerticalLayoutGroup
-        var layoutGroup = weaponButtonContainer.GetComponent<VerticalLayoutGroup>();
-        if (layoutGroup == null)
+        if (weaponButtons == null || weaponButtons.Length == 0)
         {
-            layoutGroup = weaponButtonContainer.gameObject.AddComponent<VerticalLayoutGroup>();
-            layoutGroup.childForceExpandHeight = false;
-            layoutGroup.childForceExpandWidth = true;
-        }
-
-        // Clear existing buttons
-        foreach (Transform child in weaponButtonContainer)
-        {
-            Destroy(child.gameObject);
+            Debug.LogError("[WeaponSetupUIManager] No weapon buttons assigned in inspector!");
+            return;
         }
 
         selectedWeaponsMap.Clear();
 
-        // Tạo button cho mỗi vũ khí (skip NormalShot - nó thêm vào mặc định)
+        // Xây dựng dictionary: weaponType -> WeaponButton để match tự động
+        var buttonDictionary = new Dictionary<WeaponType, WeaponButton>();
+        foreach (var weaponButton in weaponButtons)
+        {
+            if (weaponButton != null)
+            {
+                var assignedType = weaponButton.GetAssignedWeaponType();
+                buttonDictionary[assignedType] = weaponButton;
+            }
+        }
+
+        // Setup button cho mỗi vũ khí dựa vào assignedWeaponType
+        int setupCount = 0;
         foreach (var weapon in weaponListData.weapons)
         {
             // Skip NormalShot - nó được thêm vào danh sách mặc định
@@ -128,39 +131,24 @@ public class WeaponSetupUIManager : MonoBehaviour
                 continue;
             }
 
-            var buttonObj = Instantiate(weaponButtonPrefab, weaponButtonContainer);
-            var buttonRect = buttonObj.GetComponent<RectTransform>();
-
-            // Đặt lại anchor để nằm đúng trong container
-            if (buttonRect != null)
+            // Tìm button dựa vào weaponType
+            if (buttonDictionary.TryGetValue(weapon.type, out var weaponButton))
             {
-                buttonRect.anchorMin = new Vector2(0, 1);
-                buttonRect.anchorMax = new Vector2(1, 1);
-                buttonRect.pivot = new Vector2(0.5f, 1);
-                buttonRect.offsetMin = Vector2.zero;
-                buttonRect.offsetMax = Vector2.zero;
+                if (weaponButton != null)
+                {
+                    weaponButton.Setup(weapon, currentGold, OnWeaponSelected, OnWeaponDeselected);
+                    // Store mapping
+                    selectedWeaponsMap[weapon.type] = weaponButton;
+                    setupCount++;
+                }
             }
-
-            // Thêm LayoutElement nếu chưa có
-            var layoutElement = buttonObj.GetComponent<LayoutElement>();
-            if (layoutElement == null)
+            else
             {
-                layoutElement = buttonObj.AddComponent<LayoutElement>();
-            }
-            layoutElement.preferredHeight = 100; // Chiều cao button
-
-            var weaponButton = buttonObj.GetComponent<WeaponButton>();
-
-            if (weaponButton != null)
-            {
-                weaponButton.Setup(weapon, currentGold, OnWeaponSelected, OnWeaponDeselected);
-                // Store mapping
-                selectedWeaponsMap[weapon.type] = weaponButton;
+                Debug.LogWarning($"[WeaponSetupUIManager] Không tìm thấy button cho weapon type: {weapon.type}. Hãy kiểm tra assignedWeaponType trong inspector!");
             }
         }
 
-        // Force rebuild layout
-        LayoutRebuilder.ForceRebuildLayoutImmediate(weaponButtonContainer.GetComponent<RectTransform>());
+        Debug.Log($"[WeaponSetupUIManager] Setup {setupCount} weapon buttons thành công");
     }
 
     // ── UI Callbacks ───────────────────────────────────────────
@@ -210,9 +198,13 @@ public class WeaponSetupUIManager : MonoBehaviour
     /// </summary>
     private void RefreshWeaponButtons ()
     {
-        foreach (Transform child in weaponButtonContainer)
+        if (weaponButtons == null || weaponButtons.Length == 0)
         {
-            var weaponButton = child.GetComponent<WeaponButton>();
+            return;
+        }
+
+        foreach (var weaponButton in weaponButtons)
+        {
             if (weaponButton != null)
             {
                 weaponButton.UpdateAvailability(currentGold);

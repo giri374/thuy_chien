@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 75082361}
   - component: {fileID: 75082360}
   - component: {fileID: 75082359}
+  - component: {fileID: 75082362}
   m_Layer: 5
   m_Name: RadarButton
   m_TagString: Untagged
@@ -239,6 +240,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 75082357}
   m_CullTransparentMesh: 1
+--- !u!114 &75082362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 75082357}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 423272922f43e6b499c06b72dd37a91f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponIconImage: {fileID: 0}
+  weaponNameText: {fileID: 0}
+  goldCostText: {fileID: 0}
+  descriptionText: {fileID: 0}
+  selectButton: {fileID: 75082359}
+  assignedWeaponType: 4
 --- !u!1 &123590887
 GameObject:
   m_ObjectHideFlags: 0
@@ -251,6 +270,7 @@ GameObject:
   - component: {fileID: 123590891}
   - component: {fileID: 123590890}
   - component: {fileID: 123590889}
+  - component: {fileID: 123590892}
   m_Layer: 5
   m_Name: Anti-aircraftBtn
   m_TagString: Untagged
@@ -359,6 +379,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 123590887}
   m_CullTransparentMesh: 1
+--- !u!114 &123590892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 123590887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 423272922f43e6b499c06b72dd37a91f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponIconImage: {fileID: 0}
+  weaponNameText: {fileID: 0}
+  goldCostText: {fileID: 0}
+  descriptionText: {fileID: 0}
+  selectButton: {fileID: 123590889}
+  assignedWeaponType: 5
 --- !u!1 &128916718
 GameObject:
   m_ObjectHideFlags: 0
@@ -394,9 +432,9 @@ RectTransform:
   m_Father: {fileID: 748705145}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
-  m_AnchorMax: {x: 1, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 20, y: 0}
+  m_SizeDelta: {x: 20, y: -17}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &128916720
 MonoBehaviour:
@@ -969,6 +1007,7 @@ GameObject:
   - component: {fileID: 628921860}
   - component: {fileID: 628921859}
   - component: {fileID: 628921858}
+  - component: {fileID: 628921861}
   m_Layer: 5
   m_Name: NuclearBtn
   m_TagString: Untagged
@@ -1077,6 +1116,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 628921856}
   m_CullTransparentMesh: 1
+--- !u!114 &628921861
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 628921856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 423272922f43e6b499c06b72dd37a91f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponIconImage: {fileID: 0}
+  weaponNameText: {fileID: 0}
+  goldCostText: {fileID: 0}
+  descriptionText: {fileID: 0}
+  selectButton: {fileID: 628921858}
+  assignedWeaponType: 1
 --- !u!1 &665481855
 GameObject:
   m_ObjectHideFlags: 0
@@ -1112,9 +1169,9 @@ RectTransform:
   m_Father: {fileID: 748705145}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 20}
+  m_SizeDelta: {x: -17, y: 20}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &665481857
 MonoBehaviour:
@@ -1257,7 +1314,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &748705145
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1752,6 +1809,7 @@ GameObject:
   - component: {fileID: 1111740722}
   - component: {fileID: 1111740721}
   - component: {fileID: 1111740720}
+  - component: {fileID: 1111740723}
   m_Layer: 5
   m_Name: TorpedoesBtn
   m_TagString: Untagged
@@ -1860,6 +1918,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1111740718}
   m_CullTransparentMesh: 1
+--- !u!114 &1111740723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1111740718}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 423272922f43e6b499c06b72dd37a91f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponIconImage: {fileID: 0}
+  weaponNameText: {fileID: 0}
+  goldCostText: {fileID: 0}
+  descriptionText: {fileID: 0}
+  selectButton: {fileID: 1111740720}
+  assignedWeaponType: 3
 --- !u!1 &1194377876
 GameObject:
   m_ObjectHideFlags: 0
@@ -2129,8 +2205,8 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 726283241}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 0.31253326}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 20, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -2530,9 +2606,9 @@ RectTransform:
   m_Father: {fileID: 748705145}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: -17, y: -17}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1596739112
 MonoBehaviour:
@@ -2628,6 +2704,7 @@ GameObject:
   - component: {fileID: 1837814017}
   - component: {fileID: 1837814016}
   - component: {fileID: 1837814015}
+  - component: {fileID: 1837814018}
   m_Layer: 5
   m_Name: BomberButton
   m_TagString: Untagged
@@ -2736,6 +2813,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1837814013}
   m_CullTransparentMesh: 1
+--- !u!114 &1837814018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1837814013}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 423272922f43e6b499c06b72dd37a91f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponIconImage: {fileID: 0}
+  weaponNameText: {fileID: 0}
+  goldCostText: {fileID: 0}
+  descriptionText: {fileID: 0}
+  selectButton: {fileID: 1837814015}
+  assignedWeaponType: 2
 --- !u!1 &1899938076
 GameObject:
   m_ObjectHideFlags: 0
@@ -2769,7 +2864,7 @@ RectTransform:
   m_Father: {fileID: 1560665925}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 20, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -3082,7 +3177,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1938990766
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3153,11 +3248,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerTitleText: {fileID: 0}
   currentGoldText: {fileID: 1935161320}
-  weaponButtonContainer: {fileID: 748705145}
   confirmButton: {fileID: 1921742419}
   cancelButton: {fileID: 0}
   resetButton: {fileID: 580657617}
-  weaponButtonPrefab: {fileID: 6614095626295470295, guid: f0955e77fdff7ca45952d938e8fb28a0, type: 3}
+  weaponButtons:
+  - {fileID: 1837814018}
+  - {fileID: 75082362}
+  - {fileID: 628921861}
+  - {fileID: 1111740723}
+  - {fileID: 123590892}
 --- !u!1001 &2070388104
 PrefabInstance:
   m_ObjectHideFlags: 0

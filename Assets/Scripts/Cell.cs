@@ -67,7 +67,7 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
         // Check if we should show weapon preview instead of default preview
         if (BattleWeaponManager.Instance != null && gridManager != null)
         {
-            WeaponType currentWeapon = BattleWeaponManager.Instance.GetCurrentWeapon();
+            var currentWeapon = BattleWeaponManager.Instance.GetCurrentWeapon();
 
             // Show preview for special weapons on opponent's grid only
             if (currentWeapon != WeaponType.NormalShot)
@@ -76,8 +76,8 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
                 GridManager targetGrid = null;
                 if (BattleSceneLogic.Instance != null)
                 {
-                    Turn currentTurn = BattleSceneLogic.Instance.currentTurn;
-                    bool isOwnGrid = (gridManager.isPlayer1Grid && currentTurn == Turn.Player1) ||
+                    var currentTurn = BattleSceneLogic.Instance.currentTurn;
+                    var isOwnGrid = (gridManager.isPlayer1Grid && currentTurn == Turn.Player1) ||
                                      (!gridManager.isPlayer1Grid && currentTurn == Turn.Player2);
 
                     // Only show preview on opponent's grid
@@ -104,7 +104,7 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
         // Check if weapon preview was shown
         if (BattleWeaponManager.Instance != null && gridManager != null)
         {
-            WeaponType currentWeapon = BattleWeaponManager.Instance.GetCurrentWeapon();
+            var currentWeapon = BattleWeaponManager.Instance.GetCurrentWeapon();
 
             if (currentWeapon != WeaponType.NormalShot)
             {
@@ -112,8 +112,8 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
                 GridManager targetGrid = null;
                 if (BattleSceneLogic.Instance != null)
                 {
-                    Turn currentTurn = BattleSceneLogic.Instance.currentTurn;
-                    bool isOwnGrid = (gridManager.isPlayer1Grid && currentTurn == Turn.Player1) ||
+                    var currentTurn = BattleSceneLogic.Instance.currentTurn;
+                    var isOwnGrid = (gridManager.isPlayer1Grid && currentTurn == Turn.Player1) ||
                                      (!gridManager.isPlayer1Grid && currentTurn == Turn.Player2);
 
                     if (!isOwnGrid)

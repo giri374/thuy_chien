@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Radar
   m_EditorClassIdentifier: 
   type: 4
-  weaponName: 
-  goldCost: 0
+  weaponName: Radar
+  goldCost: 10
   cpCost: 0
   effectPrefab: {fileID: 0}
   icon: {fileID: 3227975845496906913, guid: 9618782a8f3880d45b44017614bbef2a, type: 3}

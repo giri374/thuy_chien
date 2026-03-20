@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Torpedoes
   m_EditorClassIdentifier: 
   type: 3
-  weaponName: 
+  weaponName: Torpedoes
   goldCost: 10
   cpCost: 0
   effectPrefab: {fileID: 0}

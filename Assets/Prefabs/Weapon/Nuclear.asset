@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Nuclear
   m_EditorClassIdentifier: 
   type: 1
-  weaponName: 
-  goldCost: 50
+  weaponName: Nuclear
+  goldCost: 10
   cpCost: 7
   effectPrefab: {fileID: 0}
   icon: {fileID: -1670874000743764010, guid: bbda83361f1c5b74a812c69a759e1500, type: 3}
