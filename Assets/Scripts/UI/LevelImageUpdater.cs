@@ -11,6 +11,7 @@ public class LevelImageUpdater : MonoBehaviour
 
     public void Start()
     {
+        
         // Cập nhật hình ảnh level ngay khi bắt đầu
         UpdateLevelImage(ProgressManager.Instance.Data.level);
     }

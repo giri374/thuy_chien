@@ -29,43 +29,50 @@ public class AttackCommand : IAttackCommand
     public long createdAtTick { get; private set; }
 
     /// <summary>
+    /// Sequential index of this command in the execution history.
+    /// </summary>
+    public int commandIndex { get; private set; }
+
+    /// <summary>
     /// Constructor for creating an attack command.
     /// </summary>
     /// <param name="weaponType">The weapon type to use. Defaults to NormalShot.</param>
     /// <param name="position">The target position on the grid.</param>
     /// <param name="attacker">Which player is attacking (Player1 or Player2).</param>
-    public AttackCommand(WeaponType weaponType, Vector2Int position, Turn attacker)
+    /// <param name="commandIndex">Sequential index of this command.</param>
+    public AttackCommand (WeaponType weaponType, Vector2Int position, Turn attacker, int commandIndex = 0)
     {
         this.weaponType = weaponType;
         this.position = position;
         this.attacker = attacker;
+        this.commandIndex = commandIndex;
         this.createdAtTick = System.DateTime.UtcNow.Ticks;
     }
 
     /// <summary>
     /// Constructor with default NormalShot weapon.
     /// </summary>
-    public AttackCommand(Vector2Int position, Turn attacker)
+    public AttackCommand (Vector2Int position, Turn attacker)
         : this(WeaponType.NormalShot, position, attacker)
     {
     }
 
-    public WeaponType GetWeaponType()
+    public WeaponType GetWeaponType ()
     {
         return weaponType;
     }
 
-    public Vector2Int GetPosition()
+    public Vector2Int GetPosition ()
     {
         return position;
     }
 
-    public Turn GetAttacker()
+    public Turn GetAttacker ()
     {
         return attacker;
     }
 
-    public async Task ExecuteAsync()
+    public async Task ExecuteAsync ()
     {
         // The actual execution is handled by AttackCommandExecutor.
         // This just ensures the Task completes immediately.
@@ -73,7 +80,7 @@ public class AttackCommand : IAttackCommand
         await Task.CompletedTask;
     }
 
-    public override string ToString()
+    public override string ToString ()
     {
         return $"AttackCommand{{weapon:{weaponType}, pos:{position}, attacker:{attacker}}}";
     }

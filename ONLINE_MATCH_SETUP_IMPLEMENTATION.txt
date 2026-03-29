@@ -1,0 +1,328 @@
+═══════════════════════════════════════════════════════════════════════════════
+ONLINE MATCH SETUP BEFORE BATTLESCENE - IMPLEMENTATION COMPLETE
+═══════════════════════════════════════════════════════════════════════════════
+
+PROJECT: Thuy_chien1 (Battleship Online Game)
+DATE: March 27, 2026
+STATUS: ✓ Online Match Flow (Menu → Setup → OnlineConnectionScene → Sync → BattleScene)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+1. LUỒNG HOẠT ĐỘNG (FLOW)
+═══════════════════════════════════════════════════════════════════════════════
+
+MENU → SETUP → ONLINE CONNECTION → BATTLE
+─────────────────────────────────────────
+
+Step 1: MenuScene
+  └─ Người chơi chọn "Play Online" button
+  └─ GameManager.SetGameMode(GameMode.PlayOnline)
+  └─ Chọn Normal/Advanced Map
+  └─ → SetupSceneUIManager.GoToBattle() → Start Setup Flow
+
+Step 2: WeaponSetupScene (nếu AdvancedMap) + SetupScene
+  └─ Cả Host và Guest đều qua các setup scene này (cách PlayWithBot/PlayWithFriend)
+  └─ Người chơi chọn vũ khí, đặt tàu
+  └─ Lưu placements vào GameManager.GetPlacements(1) [local player 1 data]
+  └─ Lưu selected weapons vào GameManager.GetSelectedWeapons(1)
+  └─ Confirm setup → SetupSceneLogic.GetNextAction() → GameFlowAction.GoToOnlineConnection
+
+Step 3: OnlineConnectionScene via Netcode Scene Manager
+  └─ Host khoảng host connection:
+     ├─ MatchHostConnectionMenuViewController: Create Match
+     ├─ → MatchHostConnectionMenu.CreateMatch_Async() → EConnection.StartConnection_Async()
+     ├─ → HostConnection.StartConnection_Async() → NetworkManager.StartHost()
+     ├─ → Join Code được hiển thị
+     └─ UI Status: "Waiting for opponent..." → "Opponent connected. Syncing setup..."
+  
+  └─ Guest join connection:
+     ├─ MatchGuestConnectionMenuViewController: Nhập Join Code
+     ├─ → MatchGuestConnectionMenu.ConnectToMatch_Async(joinCode)
+     ├─ → EConnection.StartConnection_Async(joinCode) → NetworkManager.StartClient()
+     └─ UI Status: "Connecting..." → "Connected. Waiting for host..." → "Setup syncing..."
+
+Step 4: Data Sync (Netcode RPC + Spawn)
+  └─ Host đã spawn EGameMatch prefab thông qua MatchSpawner (OnServerStarted)
+  └─ MatchSpawner.OnServerStarted() → Instantiate(eGameMatchPrefab) → NetworkObject.Spawn()
+  
+  └─ Client (Host + Guest):
+     ├─ EGameMatch.OnNetworkSpawn():
+     ├─ → SubmitLocalSetupToHost()
+     ├─ → Mỗi client gửi placements + weapons
+     
+  └─ Host (Server):
+     ├─ Host submit own setup trực tiếp: _setupByClientId[0] = hostSetup
+     ├─ Guest submit via RPC: SubmitLocalSetup_ServerRpc() →  _setupByClientId[1] = guestSetup
+     ├─ Server kiểm tra AllPlayersAreStillConnected() + cả 2 setup có đầy đủ
+     ├─ → SyncSetup_ClientsAndHostRpc(player1Setup, player2Setup)
+     
+  └─ Client (Both):
+     ├─ Nhận SyncSetup RPC
+     ├─ → ApplySyncedSetup(): Populate GameManager với official data
+     ├─ → IsSetupSynced = true
+     ├─ → OnSetupSynced?.Invoke()
+     └─ UI Status: "Setup synced. Starting battle..."
+
+Step 5: Load BattleScene via Netcode Scene Manager
+  └─ Host: LoadBattleSceneOnce() → NetworkManager.SceneManager.LoadScene(BattleScene)
+  └─ Guest: Nhận scene load command, tự động load cùng scene
+  └─ Dữ liệu đã sync trong GameManager:
+     ├─ Player1Placements (Host tàu)
+     ├─ Player2Placements (Guest tàu)
+     ├─ Player1SelectedWeapons (Host vũ khí)
+     └─ Player2SelectedWeapons (Guest vũ khí)
+
+Step 6: BattleScene Setup
+  └─ BattleSceneLogic.LoadAllShips():
+     ├─ LoadShipsFromData(GameManager.GetPlacements(1), player1Grid)
+     ├─ LoadShipsFromData(GameManager.GetPlacements(2), player2Grid)
+     └─ Tàu được đặt đúng vị trí từ sync data
+  
+  └─ BattleWeaponManager setup:
+     └─ Load vũ khí từ GameManager.GetSelectedWeapons(playerIndex)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+2. THAY ĐỔI ĐÃ THỰC HIỆN
+═══════════════════════════════════════════════════════════════════════════════
+
+FILE: Assets/Scripts/Enums&Constants/SceneNames.cs
+  ✓ Thêm: public const string OnlineConnection = "OnlineConnectionScene";
+  → Sử dụng ConsumerSceneManager và UI flow
+
+FILE: Assets/Scripts/MenuSceneUIManager.cs
+  ✓ Thêm method: OnPlayOnline()
+  ✓ Wire playOnlineButton listener
+  → Kích hoạt SetGameMode(GameMode.PlayOnline) + flow map selection
+
+FILE: Assets/Scripts/SetupSceneLogic.cs
+  ✓ Thêm: GameFlowAction.GoToOnlineConnection
+  ✓ Cập nhật: GetNextAction() để detect PlayOnline mode
+  → Route tới OnlineConnectionScene thay BattleScene
+
+FILE: Assets/Scripts/SetupSceneUIManager.cs
+  ✓ Thêm method: GoToOnlineConnection()
+  ✓ Cập nhật: OnConfirmClicked() để handle 3 flow actions
+  ✓ Cập nhật: GoToBattle() để dùng Netcode SceneManager khi host
+  → Scene transition via Netcode cho online mode
+
+FILE: Assets/OnlineMode/ConnectionMenu/MatchHostConnectionMenuViewController.cs
+  ✓ Thêm: _statusTextController, _retryButton, _backButton
+  ✓ Thêm: WaitForOpponentRoutine() để poll connection state
+  ✓ Thêm: RegisterMatchSyncEvents() để listener OnSetupSynced
+  ✓ Thêm: Retry/Back button handlers + connection watchdog
+  → UI gating + status updates trong host flow
+
+FILE: Assets/OnlineMode/ConnectionMenu/MatchGuestConnectionMenuViewController.cs
+  ✓ Thêm: _statusTextController, _retryButton, _backButton
+  ✓ Thêm: Join code validation + IsJoinStringValid()
+  ✓ Thêm: Keep menu active (không deactivate khi join)
+  ✓ Thêm: WaitForHostRoutine() để poll connection state
+  ✓ Thêm: Retry/Back button handlers + connection watchdog
+  → UI gating + status updates trong guest flow
+
+FILE: Assets/OnlineMode/GameMatch/EGameMatch.cs
+  ✓ Thêm: OnSetupSynced event + IsSetupSynced property
+  ✓ Thêm: ShipPlacementNet struct (INetworkSerializable)
+  ✓ Thêm: PlayerSetupPayload struct
+  ✓ Sửa: OnNetworkSpawn() để client + server cả hai chạy
+  ✓ Thêm: SubmitLocalSetupToHost():
+     ├─ Host: Direct add to _setupByClientId[localClientId]
+     └─ Guest: RPC submit to server
+  ✓ Thêm: SubmitLocalSetup_ServerRpc() xử lý setup từ guest
+     ├─ Auto-set AllPlayerClientIds[1] = senderClientId
+     └─ Broadcast SyncSetup khi cả 2 ready
+  ✓ Thêm: SyncSetup_ClientsAndHostRpc() sync data tới GameManager
+  ✓ Thêm: LoadBattleSceneOnce() dùng Netcode SceneManager
+  ✓ Thêm: Static reset via RuntimeInitializeOnLoadMethod
+  ✓ Thêm: OnDestroy() cleanup singleton
+  → Core logic: spawn, sync, broadcast, load battle
+
+FILE: Assets/OnlineMode/GameMatch/MatchSpawner.cs (NEW)
+  ✓ Tạo: MonoBehaviour bootstrap script
+  ✓ Subscribe NetworkManager.OnServerStarted
+  ✓ Server-only: Instantiate(eGameMatchPrefab) + NetworkObject.Spawn()
+  ✓ DontDestroyOnLoad để object sống qua scene transition
+  → Đảm bảo EGameMatch spawn trên server + sync tới client via Netcode
+
+
+═══════════════════════════════════════════════════════════════════════════════
+3. KEY DECISIONS & FIXES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Scene Loading
+   Decision: Use NetworkManager.SceneManager.LoadScene() cho online mode
+   → Đảm bảo NetworkObjects spawn đúng + scene migrations sync
+   Fallback: Standard SceneManager.LoadScene() cho single-player
+
+2. Host Setup Submission
+   Decision: Host submit trực tiếp vào _setupByClientId, Guest via RPC
+   → Tránh race condition: Host + Client RPC không always sync ngay
+   Result: AllPlayerClientIds[1] auto-set khi Server nhận RPC từ guest
+
+3. Singleton Cleanup
+   Decision: RuntimeInitializeOnLoadMethod reset + OnDestroy cleanup
+   → Tránh stale singleton lúc multi-play mode (chạy chung 1 máy)
+   Result: Mỗi lần Start Play, singleton sạch sẽ, không conflict
+
+4. Connection Blocking
+   Decision: WaitForOpponentRoutine + ConnectionWatchRoutine polling
+   → Keep UI responsive, block khi disconnect
+   Result: Status updates + Retry/Back button điều khiển
+   Note: Not using async Task - dùng Coroutine để dễ cancel
+
+
+═══════════════════════════════════════════════════════════════════════════════
+4. DATA FLOW DIAGRAM
+═══════════════════════════════════════════════════════════════════════════════
+
+BEFORE ONLINE CONNECTION:
+  GameManager.player1Placements = [Ship data từ SetupScene]
+  GameManager.player1SelectedWeapons = [Weapon type list từ WeaponSetupScene]
+
+HOST SPAWN → SYNC:
+  Host (Server + Client):
+    - SubmitLocalSetupToHost() → Direct add to _setupByClientId[0]
+    - SubmitLocalSetup_ServerRpc() handler (from guest RPC)
+      → Add _setupByClientId[1] + Set AllPlayerClientIds[1]
+    - Check both payloads ready → SyncSetup_ClientsAndHostRpc() broadcast
+
+  Guest (Client):
+    - SubmitLocalSetupToHost() → RPC to Server
+    - Server handles, broadcasts this setup back
+
+SYNC → GAMEMANGER UPDATE:
+  SyncSetup_ClientsAndHostRpc():
+    1. Clear old data
+    2. ApplyPlacementsToPlayer(1, player1Placements)
+    3. ApplyPlacementsToPlayer(2, player2Placements)
+    4. ApplyWeaponsToPlayer(1, player1Weapons)
+    5. ApplyWeaponsToPlayer(2, player2Weapons)
+    → GameManager now has official match data
+
+LOAD BATTLESCENE:
+  NetworkManager.SceneManager.LoadScene(Battle)
+    → Scene loads on all clients
+    → EGameMatch persists (DontDestroyOnLoad)
+    → BattleSceneLogic reads GameManager data
+
+
+═══════════════════════════════════════════════════════════════════════════════
+5. NÀY ĐỬNG LỖI GẶP PHẢI & GIẢI PHÁP
+═══════════════════════════════════════════════════════════════════════════════
+
+LỖI 1: EGameMatch không spawn trên client
+  ✗ Scene-placed NetworkObject không được sync
+  ✓ Giải pháp: Dùng MatchSpawner + Netcode SceneManager
+
+LỖI 2: AllPlayerClientIds[1] chưa set khi check payload
+  ✗ OnClientConnectedCallback timing không đảm bảo
+  ✓ Giải pháp: Auto-set trong SubmitLocalSetup_ServerRpc khi host nhận RPC
+
+LỖI 3: Host RPC → Self không work
+  ✗ Server.Send to Server = miss
+  ✓ Giải pháp: Host submit trực tiếp, Guest submit via RPC
+
+LỖI 4: Static singleton bị giữ lại sau Play/Stop
+  ✗ MPM (Multiplayer Play Mode) 2 instance = conflict
+  ✓ Giải pháp: RuntimeInitializeOnLoadMethod reset + OnDestroy cleanup
+
+LỖI 5: Prefab hash mismatch
+  ✗ Scene object + Prefab spawn = duplicate (index mismatch)
+  ✓ Giải pháp: Xóa scene object, chỉ dùng prefab spawn + DontDestroyOnLoad
+
+
+═══════════════════════════════════════════════════════════════════════════════
+6. ARCHITECTURE NOTES
+═══════════════════════════════════════════════════════════════════════════════
+
+Host = Server + Client (IsServer=True, IsClient=True, IsHost=True)
+Guest = Client only (IsServer=False, IsClient=True, IsHost=False)
+
+Mapping:
+  Player 1 = Host (always) → clientId 0
+  Player 2 = Guest → clientId 1 (dynamic, set from OnClientConnectedCallback or RPC)
+
+RPC Types Used:
+  [Rpc(SendTo.Server)]:      Client sends to server (SubmitLocalSetup_ServerRpc)
+  [Rpc(SendTo.ClientsAndHost)]: Server broadcasts to all (SyncSetup_ClientsAndHostRpc)
+
+Command Pattern (for next phase):
+  ✓ AttackCommand: Immutable attack data (position, weapon, attacker)
+  ✓ AttackCommandHistory: Log for replay/sync
+  ✓ AttackCommandExecutor: Execute & callback result
+  → Will use NetworkList<CommandData> hoặc RPC per command
+
+
+═══════════════════════════════════════════════════════════════════════════════
+7. NEXT STEPS: AttackCommand trong BattleScene
+═══════════════════════════════════════════════════════════════════════════════
+
+PHASE 2: Online Battle Execution
+
+Scope:
+  1. Xử lý AttackCommand từ BattleSceneLogic
+  2. Gửi command lên server via RPC hoặc NetworkList
+  3. Server sync command để guest nhận
+  4. Cả 2 client execute command locally (game logic đã ở đó)
+  5. Đảm bảo turn-based: chỉ host/current player gửi command được
+
+Reference Points:
+  - BattleSceneLogic.CreateAndExecuteAttackCommandAsync() [line ~150]
+  - BattleSceneLogic.ExecuteBotAttackCommand() [line ~190]
+  - Grid click handlers: OnPlayer1GridCellClicked, OnPlayer2GridCellClicked
+  - Command struct: AttackCommand (weaponType, position, attacker, index)
+  - Result callback: HandleAttackResult, HandleBotAttackResult
+
+Data Flow:
+  BattleSceneLogic.HandleAttack(cell, isPlayer1Attacking)
+    ↓
+  CreateAndExecuteAttackCommandAsync(weaponType, position, attacker)
+    ├─ Create AttackCommand
+    ├─ Send via RPC to Server/Broadcast to Clients
+    └─ Execute locally (game logic: grid checks, damage, etc.)
+    ↓
+  Callback HandleAttackResult(result)
+    ├─ Check sunk ships
+    ├─ Handle CP/turn logic
+    └─ UI updates
+
+Challenge (Turn-based Sync):
+  - Host controls turn state
+  - Guest must not send command out-of-turn
+  - Solution: currentTurn sync via NetworkVariable hoặc RPC
+  - Or: Client predicts locally, Server validates & broadcasts correction
+
+Reconnect Safety:
+  - Use NetworkVariable<int> lastExecutedCommandIndex
+  - Client track lastExecutedIndex locally
+  - On reconnect, sync pending commands from NetworkList
+
+
+═══════════════════════════════════════════════════════════════════════════════
+8. FILES QUA HẠN & READY
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ READY: 
+  - MenuSceneUIManager (PlayOnline button)
+  - SetupSceneLogic (flow routing)
+  - SetupSceneUIManager (scene transition)
+  - MatchHostConnectionMenuViewController (host UI)
+  - MatchGuestConnectionMenuViewController (guest UI)
+  - EGameMatch (sync engine)
+  - MatchSpawner (spawn bootstrap)
+
+⚠ NEED REVIEW:
+  - MatchRoleMenuViewController (role selection UI) - check nếu cần chỉnh sửa
+  - NetworkManager settings (Scene Management toggle)
+  - OnlineConnectionScene trong Build Settings
+
+❌ TO DO (Phase 2):
+  - BattleSceneLogic.OnlineMode adaptation (AttackCommand RPC/NetworkList)
+  - Turn state NetworkVariable/sync
+  - Command validation + re-execution safety
+
+
+═══════════════════════════════════════════════════════════════════════════════
+END OF DOCUMENT
+═══════════════════════════════════════════════════════════════════════════════

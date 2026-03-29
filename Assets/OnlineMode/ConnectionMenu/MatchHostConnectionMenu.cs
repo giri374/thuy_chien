@@ -22,11 +22,6 @@
             get => _matchId;
             set
             {
-                if (!string.IsNullOrEmpty(_matchId))
-                {
-                    return;
-                }
-
                 _matchId = value;
             }
         }

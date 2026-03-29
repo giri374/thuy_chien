@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Commons/DontDestroyOnLoadGameObjectHandlers/Initialization/DontDestroyOnLoadGameObjectInitialization.unity
+    path: Assets/Scenes/DontDestroyOnLoadScene.unity
     guid: d30c00ee5c6e9c741ae55fa93624677b
   - enabled: 1
     path: Assets/Scenes/MenuScene.unity
@@ -17,6 +17,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/WeaponSetupScene.unity
     guid: 79e01e395e6872845ae0173b7f94fc25
+  - enabled: 1
+    path: Assets/Scenes/OnlineConnectionScene.unity
+    guid: 35ce94fee0d76d54497f54c3efd23d66
   - enabled: 1
     path: Assets/Scenes/BattleScene.unity
     guid: 6f361d02b21d88d45aab29b6c48af68f

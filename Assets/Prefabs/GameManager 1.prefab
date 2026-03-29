@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &6650631137143878675
+--- !u!1 &1158514200642543345
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,40 +8,41 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 694325872547560956}
-  - component: {fileID: 5550941958002618770}
+  - component: {fileID: 1963644197361587685}
+  - component: {fileID: 7932977060932566910}
   m_Layer: 0
-  m_Name: GameManager
+  m_Name: GameManager 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &694325872547560956
+--- !u!4 &1963644197361587685
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6650631137143878675}
+  m_GameObject: {fileID: 1158514200642543345}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 238.13264, y: 194.60094, z: -0.47202852}
+  m_LocalPosition: {x: 534.614, y: 139.43411, z: -1.0605766}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5550941958002618770
+--- !u!114 &7932977060932566910
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6650631137143878675}
+  m_GameObject: {fileID: 1158514200642543345}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9277786694acc094690fc4492c83b5e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   shipListData: {fileID: 11400000, guid: 180521354f585f145a4dc8d9c63ce0dc, type: 2}
+  weaponListData: {fileID: 11400000, guid: 332c350448df2614e89beaee1907f122, type: 2}

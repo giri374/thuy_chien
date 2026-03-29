@@ -10,9 +10,9 @@
             EConnection.Disconnect();
         }
 
-        public static void MarkCell ((int rowIndex, int columnIndex) position)
-        {
-            EGameMatch.Singleton.MarkCell_ServerRPC(rowIndex: position.rowIndex, columnIndex: position.columnIndex);
-        }
+        // public static void MarkCell ((int rowIndex, int columnIndex) position)
+        // {
+        //     EGameMatch.Singleton.MarkCell_ServerRPC(rowIndex: position.rowIndex, columnIndex: position.columnIndex);
+        // }
     }
 }

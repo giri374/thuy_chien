@@ -93,6 +93,10 @@ public class SetupSceneUIManager : MonoBehaviour
         {
             ShowPassDeviceScreen();
         }
+        else if (action == GameFlowAction.GoToOnlineConnection)
+        {
+            GoToOnlineConnection();
+        }
         else
         {
             GoToBattle();
@@ -138,6 +142,18 @@ public class SetupSceneUIManager : MonoBehaviour
     private void GoToBattle ()
     {
         SceneManager.LoadScene(SceneNames.Battle);
+    }
+
+    private void GoToOnlineConnection ()
+    {
+        var networkManager = Unity.Netcode.NetworkManager.Singleton;
+        if (networkManager != null && networkManager.IsServer && networkManager.SceneManager != null)
+        {
+            networkManager.SceneManager.LoadScene(SceneNames.OnlineConnection, LoadSceneMode.Single);
+            return;
+        }
+
+        SceneManager.LoadScene(SceneNames.OnlineConnection);
     }
 
 }

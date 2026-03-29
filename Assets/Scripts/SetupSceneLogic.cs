@@ -51,11 +51,15 @@ public class SetupSceneLogic : MonoBehaviour
 
     public GameFlowAction GetNextAction ()
     {
-        var isPlayWithFriend = GameManager.Instance?.gameMode == GameMode.PlayWithFriend;
+        var mode = GameManager.Instance?.gameMode ?? GameMode.PlayWithBot;
 
-        if (isPlayWithFriend && currentPlayer == 1)
+        if (mode == GameMode.PlayWithFriend && currentPlayer == 1)
         {
             return GameFlowAction.ShowPassDevice;
+        }
+        if (mode == GameMode.PlayOnline)
+        {
+            return GameFlowAction.GoToOnlineConnection;
         }
         else
         {
@@ -169,5 +173,6 @@ public class SetupSceneLogic : MonoBehaviour
 public enum GameFlowAction
 {
     ShowPassDevice,
-    GoToBattle
+    GoToBattle,
+    GoToOnlineConnection
 }

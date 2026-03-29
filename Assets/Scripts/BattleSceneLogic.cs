@@ -40,6 +40,8 @@ public class BattleSceneLogic : MonoBehaviour
     [Header("Command System")]
     private AttackCommandHistory commandHistory;
     private AttackCommandExecutor commandExecutor;
+    private int commandCounter = 0;  // Counter for assigning sequential indices to commands
+    private int lastExecutedIndex = -1;  // Index of the last successfully executed command
 
     public GameState currentState = GameState.Playing;
     public Turn currentTurn = Turn.Player1;
@@ -50,6 +52,7 @@ public class BattleSceneLogic : MonoBehaviour
 
     // ── Weapon System ──────────────────────────────────────────
     private WeaponType lastUsedWeapon = WeaponType.NormalShot;
+    private int lastCommandIndex = -1;  // Index of the current command being executed
 
     public delegate void TurnChangedHandler (Turn currentTurn, GameMode gameMode);
     public delegate void PassAndPlayNeededHandler (Turn nextTurn);
@@ -179,8 +182,10 @@ public class BattleSceneLogic : MonoBehaviour
         // Store weapon type for result handling
         lastUsedWeapon = weaponType;
 
-        // Create the command (immutable input data)
-        IAttackCommand command = new AttackCommand(weaponType, position, attacker);
+        // Create the command (immutable input data) with sequential index
+        int currentCommandIndex = commandCounter++;
+        lastCommandIndex = currentCommandIndex;  // Store for result handling
+        IAttackCommand command = new AttackCommand(weaponType, position, attacker, currentCommandIndex);
 
         // Record the command in history for replays and network sync
         commandHistory.RecordCommand(command);
@@ -207,8 +212,10 @@ public class BattleSceneLogic : MonoBehaviour
         // Store weapon type for result handling
         lastUsedWeapon = weaponType;
 
-        // Create the command with bot (Player 2) as attacker
-        IAttackCommand command = new AttackCommand(weaponType, position, Turn.Player2);
+        // Create the command with bot (Player 2) as attacker and sequential index
+        int currentCommandIndex = commandCounter++;
+        lastCommandIndex = currentCommandIndex;  // Store for result handling
+        IAttackCommand command = new AttackCommand(weaponType, position, Turn.Player2, currentCommandIndex);
 
         // Record the command in history
         commandHistory.RecordCommand(command);
@@ -228,6 +235,9 @@ public class BattleSceneLogic : MonoBehaviour
         {
             return;
         }
+
+        // Successfully executed the command - update lastExecutedIndex
+        lastExecutedIndex = lastCommandIndex;
 
         // Determine which player attacked based on the current turn
         bool isPlayer1Attacking = currentTurn == Turn.Player1;
@@ -321,6 +331,9 @@ public class BattleSceneLogic : MonoBehaviour
     /// </summary>
     private void HandleBotAttackResult (CellAttackResult result)
     {
+        // Successfully executed the command - update lastExecutedIndex
+        lastExecutedIndex = lastCommandIndex;
+
         // Add/Subtract CP based on weapon used
         if (lastUsedWeapon == WeaponType.NormalShot)
         {

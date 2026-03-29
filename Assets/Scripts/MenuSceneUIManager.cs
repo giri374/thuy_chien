@@ -10,6 +10,7 @@ public class MenuSceneUIManager : MonoBehaviour
     [Header("UI References")]
     public Button playWithBotButton;
     public Button playWithFriendButton;
+    public Button playOnlineButton;
 
     [Header("Set Map")]
     public GameObject setMapPanel;
@@ -47,6 +48,11 @@ public class MenuSceneUIManager : MonoBehaviour
             playWithFriendButton.onClick.AddListener(OnPlayWithFriend);
         }
 
+        if (playOnlineButton != null)
+        {
+            playOnlineButton.onClick.AddListener(OnPlayOnline);
+        }
+
         if (setNormalMapButton != null)
         {
             setNormalMapButton.onClick.AddListener(OnSetNormalMap);
@@ -80,6 +86,16 @@ public class MenuSceneUIManager : MonoBehaviour
     {
         GameManager.Instance.SetGameMode(GameMode.PlayWithFriend);
         // Vào WeaponSetupScene Player 1,WeaponSetupScene Player 2, SetupScene cho Player 1, SetupScene Player 2,  rồi mới vào BattleScene
+        setMapPanel.SetActive(true);
+    }
+
+    /// <summary>
+    /// Nút "Chơi Online"
+    /// </summary>
+    public void OnPlayOnline ()
+    {
+        GameManager.Instance.SetGameMode(GameMode.PlayOnline);
+        // Vào WeaponSetupScene (nếu AdvancedMap), SetupScene, sau đó OnlineConnectionScene trước BattleScene
         setMapPanel.SetActive(true);
     }
 
