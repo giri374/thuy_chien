@@ -1,7 +1,7 @@
 # Game Thủy chiến 
 Thành viên:
 - Trần Khánh Linh: Unity
-- Nguyễn Anh Đức: Thiết kế 
+- Nguyễn Anh Đức: Thiết kế, hiệu ứng, âm thanh
 - Nguyễn Đức Tùng Lâm: Lập trình mạng
 
 
