@@ -2,7 +2,8 @@ Thiết lập chế độ chơi 2 người chơi Online, sử dụng Unity Netco
 Về các hàm cần thiết có thể sử dụng, xem tại thư mục Assets/OnlineMode.
 
 Nguyên tắc hoạt động: Tại BattleScene, logic game được xử lý tại cả hai máy client, server chỉ chuyển đi hành động của người chơi (AttackCommand).
-Như vậy, ở chế độ Online, mỗi khi người chơi tạo một AttackCommand, command đó được tải lên NetworkList, sau đó mới được thực hiện ở máy người chơi. Ở máy bên kia, khi OnListChanged kích hoạt, bạn lấy CommandData mới và đẩy nó vào một Queue<ICommand> cục bộ trên Client, sau đó thực hiện lần lượt từng Command.
+Hiện tại: chỉ đồng bộ Setup (ShipPlacementData, WeaponType) trước khi vào BattleScene. Command tấn công vẫn được thực hiện local ở mỗi client.
+TODO (chưa triển khai): ở chế độ Online, mỗi khi người chơi tạo một AttackCommand, command đó được tải lên NetworkList, sau đó mới được thực hiện ở máy người chơi. Ở máy bên kia, khi OnListChanged kích hoạt, bạn lấy CommandData mới và đẩy nó vào một Queue<ICommand> cục bộ trên Client, sau đó thực hiện lần lượt từng Command.
 
 - xem xét vấn đề Race Condition khi sử dụng command: sai thứ tự, lạc mất, hai cái cùng tác động 1 chỗ. Cách giải quyết: thêm số thứ tự, timestamp, xếp command vào queue, chỉ cập nhật khi có sai khác. Đây là game Turn base nên ít trường hợp hai bên cùng 1 lúc (vì nếu ko đúng lượt sẽ bị chặn trc khi gửi command.)
 
@@ -10,7 +11,7 @@ Lưu ý: ClientRpc/ServerRPC lỗi thời. Dùng [Rpc] attribute SendTo
 Đảm bảo khi Reconnect, chặn tất cả hành động cho đến khi đồng bộ Command.
 Khi chỉnh sửa cho chế độ Online, cố gắng hạn chế chỉnh sửa hết sức có thể. Nếu cần thêm quá nhiều Logic vào SetupScene, SetupWeaponScene, BattleScene, có thể tạo một class kế thừa class cũ và thực hiện override.
 
-Xử lý vấn đề mất kết nối:
+Xử lý vấn đề mất kết nối (TODO):
 Tạo một NetworkList để lưu danh sách Command (nếu không thể chuyển command với Unity NGO, hãy tạo một CommanData), đồng bộ với commandHistory. Tuy nhiên, vì NetworkList được sync ngay lập tức sau khi kết nối mạng, Command được thực hiện lần lượt theo số thứ tự, dùng biến cục bộ int lastExecutedIndex để xác định theo đã thực hiện command nào.
 
 Luồng hoạt động:
@@ -19,7 +20,7 @@ Luồng hoạt động:
 Khi người chơi chọn playOnlineButton, sẽ được set enum GameMode.PlayOnline.
 Người chơi tiếp tục vào các Scene SetupWeaponScene (chỉ nếu GameMap.AdvancedMap), SetupScene như hai GameMode còn lại. Trước BattleScene, người chơi vào OnlineConnectionScene, nơi người chơi tạo trận đấu/tham gia trận đấu.
 Lưu ý: việc match trận ở OnlineConnectionScene được thực hiện sau SetupScene và trước BattleScene. Do đó, trên máy của mỗi người chơi, luồng game sẽ tương tự chế độ PlayWithBot: qua 1 SetupWeaponScene (nếu AdvancedMap), 1 SetupScene
-Chỉ đến khi 2 người chơi online được match xong và vào BattleScene, dữ liệu mới được gửi đến và thiết lập.
+Chỉ đến khi 2 người chơi online được match xong và vào BattleScene, dữ liệu mới được gửi đến và thiết lập (sync qua EGameMatch).
 
 
 OnlineConnectionScene chứa các script tự tạo MatchRoleMenuViewController, MatchGuestConnectionMenu, MatchGuestConnectionMenuViewController, MatchHostConnectionMenu,  MatchHostConnectionMenuViewController. Các sript này có thể sử dụng, nhưng cần chỉnh sửa thêm. Tìm các scripts tại Asset/OnlineMode/ConnectionMenu.

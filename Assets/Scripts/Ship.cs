@@ -21,20 +21,20 @@ public class Ship : MonoBehaviour
     public SpriteRenderer shipSpriteRenderer;
     private bool isVisible;
 
-    public void Initialize(ShipData data)
+    public void Initialize (ShipData data)
     {
         shipData = data;
         shipSpriteRenderer = GetComponent<SpriteRenderer>();
         SetVisible(false);
     }
 
-    public void Rotate()
+    public void Rotate ()
     {
         isHorizontal = !isHorizontal;
         transform.rotation = Quaternion.Euler(0, 0, isHorizontal ? 0 : 90);
     }
 
-    public Vector2Int GetSize()
+    public Vector2Int GetSize ()
     {
         if (shipData == null)
         {
@@ -46,7 +46,7 @@ public class Ship : MonoBehaviour
             : new Vector2Int(shipData.size.y, shipData.size.x);
     }
 
-    public void TakeHit(Cell hitCell)
+    public void TakeHit (Cell hitCell)
     {
         hitCount++;
 
@@ -56,18 +56,18 @@ public class Ship : MonoBehaviour
         }
     }
 
-    public bool IsSunk()
+    public bool IsSunk ()
     {
         return hitCount >= occupiedCells.Count;
     }
 
-    private void OnSunk()
+    private void OnSunk ()
     {
         SetVisible(true);
         Debug.Log($"{shipData.shipName} đã bị chìm!");
     }
 
-    public void SetVisible(bool visible)
+    public void SetVisible (bool visible)
     {
         isVisible = visible;
 
@@ -77,7 +77,7 @@ public class Ship : MonoBehaviour
         }
     }
 
-    public List<Vector2Int> GetOccupiedPositions()
+    public List<Vector2Int> GetOccupiedPositions ()
     {
         var positions = new List<Vector2Int>();
         var size = GetSize();
@@ -93,7 +93,7 @@ public class Ship : MonoBehaviour
         return positions;
     }
 
-    public void SetOccupiedCells(List<Cell> cells)
+    public void SetOccupiedCells (List<Cell> cells)
     {
         occupiedCells = cells;
 
@@ -103,7 +103,7 @@ public class Ship : MonoBehaviour
         }
     }
 
-    public void SetGridPosition(Vector2Int position)
+    public void SetGridPosition (Vector2Int position)
     {
         gridPosition = position;
     }

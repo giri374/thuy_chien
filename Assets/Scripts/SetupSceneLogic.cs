@@ -5,6 +5,9 @@ public class SetupSceneLogic : MonoBehaviour
 {
     public static SetupSceneLogic Instance { get; private set; }
 
+    private const int RandomPlacementMaxAttempts = 400;
+    private const int RandomPlacementPasses = 2;
+
     [Header("Grid")]
     public GridManager playerGrid;
 
@@ -20,6 +23,12 @@ public class SetupSceneLogic : MonoBehaviour
 
     public void Initialize (int player)
     {
+        if (player != 1 && player != 2)
+        {
+            Debug.LogError($"[SetupSceneLogic] Invalid player index: {player}");
+            return;
+        }
+
         currentPlayer = player;
 
         // Xóa data placement cũ
@@ -99,11 +108,14 @@ public class SetupSceneLogic : MonoBehaviour
 
         ResetAllPlacements();
 
-        var placedAll = TryRandomPlaceAllShips();
-        if (!placedAll)
+        var placedAll = false;
+        for (var pass = 0; pass < RandomPlacementPasses && !placedAll; pass++)
         {
-            ResetAllPlacements();
             placedAll = TryRandomPlaceAllShips();
+            if (!placedAll)
+            {
+                ResetAllPlacements();
+            }
         }
 
         if (!placedAll)
@@ -140,9 +152,7 @@ public class SetupSceneLogic : MonoBehaviour
 
     private bool TryRandomPlaceShip (ShipPlacement shipPlacement)
     {
-        const int maxAttempts = 400;
-
-        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        for (var attempt = 0; attempt < RandomPlacementMaxAttempts; attempt++)
         {
             var horizontal = Random.value > 0.5f;
             var x = Random.Range(0, playerGrid.gridWidth);

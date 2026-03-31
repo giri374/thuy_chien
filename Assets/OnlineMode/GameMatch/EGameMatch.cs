@@ -1,6 +1,7 @@
 ﻿namespace Assets.OnlineMode.GameMatch
 {
     using System;
+    using System.Collections;
     using System.Collections.Generic;
     using Assets.OnlineMode.ConnectionMenu;
     using Unity.Netcode;
@@ -75,7 +76,8 @@
             ////Bên dưới còn đoạn nữa khai báo các property này đã comment .
             //LastMarkedMark_NetworkVariable = new();
             //CurrentGameState_NetworkVariable = new();
-            AllPlayerClientIds = new ulong[MatchHostConnectionMenu.TotalPlayers];
+            EnsurePlayerIdArray();
+            Array.Clear(_allPlayersClientId, 0, _allPlayersClientId.Length);
             _setupByClientId = new Dictionary<ulong, PlayerSetupPayload>();
         }
 
@@ -168,19 +170,7 @@
             }
         }
 
-        private ulong[] AllPlayerClientIds
-        {
-            get => _allPlayersClientId;
-            set
-            {
-                if (_allPlayersClientId != null)
-                {
-                    return;
-                }
-
-                _allPlayersClientId = value;
-            }
-        }
+        private ulong[] AllPlayerClientIds => _allPlayersClientId;
         private ulong PlayerOfCurrentTurnClientId { get; set; }
 
         private static EGameMatch _singleton;
@@ -189,10 +179,13 @@
         private Dictionary<ulong, PlayerSetupPayload> _setupByClientId;
         private bool _localSetupSubmitted;
         private bool _battleSceneLoaded;
+        private bool _setupSyncTimeoutScheduled;
+        private const float SetupSyncTimeoutSeconds = 120f;
 
         private bool AllPlayersAreStillConnected ()
         {
-            return NetworkManager.Singleton.ConnectedClients.Count == MatchHostConnectionMenu.TotalPlayers;
+            var manager = NetworkManager.Singleton;
+            return manager != null && manager.ConnectedClients.Count == MatchHostConnectionMenu.TotalPlayers;
         }
 
         private void SubmitLocalSetupToHost ()
@@ -228,6 +221,7 @@
                     Weapons = weapons
                 };
                 Debug.Log($"[EGameMatch] Host added own setup to dict: clientId={clientId}");
+                StartSetupSyncTimeoutIfServer();
             }
             else
             {
@@ -279,6 +273,8 @@
                 Placements = placements,
                 Weapons = weapons
             };
+
+            StartSetupSyncTimeoutIfServer();
 
             // If sender is not host (clientId != 0), it's the guest. Set AllPlayerClientIds[1].
             EnsurePlayerIdArray();
@@ -363,6 +359,37 @@
             SceneManager.LoadScene(SceneNames.Battle);
         }
 
+        private void StartSetupSyncTimeoutIfServer ()
+        {
+            if (!IsServer || _setupSyncTimeoutScheduled)
+            {
+                return;
+            }
+
+            _setupSyncTimeoutScheduled = true;
+            StartCoroutine(SetupSyncTimeoutCoroutine());
+        }
+
+        private IEnumerator SetupSyncTimeoutCoroutine ()
+        {
+            yield return new WaitForSeconds(SetupSyncTimeoutSeconds);
+
+            if (IsSetupSynced)
+            {
+                yield break;
+            }
+
+            Debug.LogWarning("[EGameMatch] Setup sync timed out. Returning to main menu.");
+            AbortSetupSync_ClientsAndHostRpc();
+        }
+
+        [Rpc(SendTo.ClientsAndHost)]
+        private void AbortSetupSync_ClientsAndHostRpc ()
+        {
+            Debug.LogWarning("[EGameMatch] Setup sync aborted.");
+            SceneManager.LoadScene(SceneNames.MainMenu);
+        }
+
         private void ApplySyncedSetup (
             ShipPlacementNet[] player1Placements,
             WeaponType[] player1Weapons,
@@ -395,8 +422,15 @@
             var targetList = GameManager.Instance.GetPlacements(playerIndex);
             targetList.Clear();
 
+            var seenShipIds = new HashSet<int>();
+
             foreach (var placement in placements)
             {
+                if (!IsValidPlacement(placement, seenShipIds))
+                {
+                    continue;
+                }
+
                 targetList.Add(new GameManager.ShipPlacementData
                 {
                     shipID = placement.ShipId,
@@ -404,6 +438,29 @@
                     isHorizontal = placement.IsHorizontal
                 });
             }
+        }
+
+        private bool IsValidPlacement (ShipPlacementNet placement, HashSet<int> seenShipIds)
+        {
+            if (placement.ShipId < 0)
+            {
+                Debug.LogWarning("[EGameMatch] Invalid placement: negative ship id.");
+                return false;
+            }
+
+            if (placement.X < 0 || placement.Y < 0)
+            {
+                Debug.LogWarning("[EGameMatch] Invalid placement: negative coordinates.");
+                return false;
+            }
+
+            if (!seenShipIds.Add(placement.ShipId))
+            {
+                Debug.LogWarning($"[EGameMatch] Duplicate placement for ship id {placement.ShipId}.");
+                return false;
+            }
+
+            return true;
         }
 
         private void ApplyWeaponsToPlayer (int playerIndex, WeaponType[] weapons)

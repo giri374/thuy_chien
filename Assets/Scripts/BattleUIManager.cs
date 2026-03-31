@@ -10,6 +10,16 @@ public class BattleUIManager : MonoBehaviour
 {
     public static BattleUIManager Instance { get; private set; }
 
+    private const string TurnYour = "Your turn";
+    private const string TurnBot = "Bot is thinking...";
+    private const string TurnPlayer1 = "Player 1's turn";
+    private const string TurnPlayer2 = "Player 2's turn";
+    private const string PassAndPlayPrompt = "Give the device to {0}.\nAre you ready?";
+    private const string WinnerYou = "You win! 🎉";
+    private const string WinnerBot = "Bot wins! 🤖";
+    private const string WinnerPlayer1 = "Player 1 wins! 🎉";
+    private const string WinnerPlayer2 = "Player 2 wins! 🎉";
+
     [Header("Turn UI")]
     public TextMeshProUGUI turnText;
 
@@ -93,11 +103,11 @@ public class BattleUIManager : MonoBehaviour
 
         if (gameMode == GameMode.PlayWithBot)
         {
-            turnText.text = currentTurn == Turn.Player1 ? "Your turn" : "Bot is thinking...";
+            turnText.text = currentTurn == Turn.Player1 ? TurnYour : TurnBot;
         }
         else
         {
-            turnText.text = currentTurn == Turn.Player1 ? "Player 1's turn" : "Player 2's turn";
+            turnText.text = currentTurn == Turn.Player1 ? TurnPlayer1 : TurnPlayer2;
         }
     }
 
@@ -115,7 +125,7 @@ public class BattleUIManager : MonoBehaviour
         var nextPlayer = nextTurn == Turn.Player2 ? "Player 2" : "Player 1";
         if (passAndPlayText != null)
         {
-            passAndPlayText.text = $"Give the device to {nextPlayer}.\nAre you ready?";
+            passAndPlayText.text = string.Format(PassAndPlayPrompt, nextPlayer);
         }
     }
 
@@ -138,8 +148,8 @@ public class BattleUIManager : MonoBehaviour
     public void ShowGameOverPanel (bool player1Won, GameMode gameMode)
     {
         var winnerText = gameMode == GameMode.PlayWithBot
-            ? player1Won ? "You win! 🎉" : "Bot wins! 🤖"
-            : player1Won ? "Player 1 wins! 🎉" : "Player 2 wins! 🎉";
+            ? player1Won ? WinnerYou : WinnerBot
+            : player1Won ? WinnerPlayer1 : WinnerPlayer2;
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(true);

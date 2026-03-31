@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Core.Models;
 using UnityEngine;
 
@@ -52,7 +51,6 @@ public class BattleSceneLogic : MonoBehaviour
 
     // ── Weapon System ──────────────────────────────────────────
     private WeaponType lastUsedWeapon = WeaponType.NormalShot;
-    private int lastCommandIndex = -1;  // Index of the current command being executed
 
     public delegate void TurnChangedHandler (Turn currentTurn, GameMode gameMode);
     public delegate void PassAndPlayNeededHandler (Turn nextTurn);
@@ -184,7 +182,6 @@ public class BattleSceneLogic : MonoBehaviour
 
         // Create the command (immutable input data) with sequential index
         int currentCommandIndex = commandCounter++;
-        lastCommandIndex = currentCommandIndex;  // Store for result handling
         IAttackCommand command = new AttackCommand(weaponType, position, attacker, currentCommandIndex);
 
         // Record the command in history for replays and network sync
@@ -194,11 +191,11 @@ public class BattleSceneLogic : MonoBehaviour
         // Use the weapon executor which handles both single-cell and multi-cell attacks
         if (weaponType != WeaponType.NormalShot)
         {
-            await commandExecutor.ExecuteWeaponAttackAsync(command, HandleAttackResult);
+            await commandExecutor.ExecuteWeaponAttackAsync(command, result => HandleAttackResult(result, currentCommandIndex));
         }
         else
         {
-            await commandExecutor.ExecuteAsync(command, HandleAttackResult);
+            await commandExecutor.ExecuteAsync(command, result => HandleAttackResult(result, currentCommandIndex));
         }
     }
 
@@ -214,14 +211,13 @@ public class BattleSceneLogic : MonoBehaviour
 
         // Create the command with bot (Player 2) as attacker and sequential index
         int currentCommandIndex = commandCounter++;
-        lastCommandIndex = currentCommandIndex;  // Store for result handling
         IAttackCommand command = new AttackCommand(weaponType, position, Turn.Player2, currentCommandIndex);
 
         // Record the command in history
         commandHistory.RecordCommand(command);
 
         // Execute the command with a special callback for bot result handling
-        await commandExecutor.ExecuteAsync(command, HandleBotAttackResult);
+        await commandExecutor.ExecuteAsync(command, result => HandleBotAttackResult(result, currentCommandIndex));
     }
 
     /// <summary>
@@ -229,7 +225,7 @@ public class BattleSceneLogic : MonoBehaviour
     /// This is called after a command executes and handles the game logic response
     /// (checking for sinks, switching turns, etc.)
     /// </summary>
-    private void HandleAttackResult (CellAttackResult result)
+    private void HandleAttackResult (CellAttackResult result, int commandIndex)
     {
         if (currentState != GameState.Playing)
         {
@@ -237,45 +233,28 @@ public class BattleSceneLogic : MonoBehaviour
         }
 
         // Successfully executed the command - update lastExecutedIndex
-        lastExecutedIndex = lastCommandIndex;
+        lastExecutedIndex = commandIndex;
 
         // Determine which player attacked based on the current turn
         bool isPlayer1Attacking = currentTurn == Turn.Player1;
         GridManager targetGrid = isPlayer1Attacking ? player2Grid : player1Grid;
-        GridManager attackerGrid = isPlayer1Attacking ? player1Grid : player2Grid;
         int attackerIndex = isPlayer1Attacking ? 1 : 2;
 
         // Handle Radar attack (doesn't consume turn, costs CP)
         if (lastUsedWeapon == WeaponType.Radar)
         {
-            int cpCost = GetWeaponCPCost(lastUsedWeapon);
-            if (cpCost > 0)
-            {
-                GameManager.Instance.SubtractCP(attackerIndex, cpCost);
-                Debug.Log($"[BattleSceneLogic] Player {attackerIndex} used Radar, cost: {cpCost} CP");
-            }
+            ApplyWeaponCost(attackerIndex, lastUsedWeapon, "used Radar");
             // Radar doesn't switch turns - same player goes again
-            if (BattleWeaponManager.Instance != null)
-            {
-                BattleWeaponManager.Instance.SelectWeapon(WeaponType.NormalShot);
-            }
+            ResetSelectedWeapon();
             return;
         }
 
         // Handle Anti-Aircraft attack (defensive, doesn't consume opponent's turn but costs CP)
         if (lastUsedWeapon == WeaponType.AntiAircraft)
         {
-            int cpCost = GetWeaponCPCost(lastUsedWeapon);
-            if (cpCost > 0)
-            {
-                GameManager.Instance.SubtractCP(attackerIndex, cpCost);
-                Debug.Log($"[BattleSceneLogic] Player {attackerIndex} set Anti-Aircraft defense, cost: {cpCost} CP");
-            }
+            ApplyWeaponCost(attackerIndex, lastUsedWeapon, "set Anti-Aircraft defense");
             // Anti-Aircraft doesn't switch turns - same player goes again
-            if (BattleWeaponManager.Instance != null)
-            {
-                BattleWeaponManager.Instance.SelectWeapon(WeaponType.NormalShot);
-            }
+            ResetSelectedWeapon();
             return;
         }
 
@@ -284,17 +263,12 @@ public class BattleSceneLogic : MonoBehaviour
         if (lastUsedWeapon == WeaponType.NormalShot)
         {
             // NormalShot gives +1 CP on each attack
-            GameManager.Instance.AddCP(attackerIndex, 1);
+            ApplyNormalShotReward(attackerIndex);
         }
         else
         {
             // Subtract CP cost for special weapons
-            int cpCost = GetWeaponCPCost(lastUsedWeapon);
-            if (cpCost > 0)
-            {
-                GameManager.Instance.SubtractCP(attackerIndex, cpCost);
-                Debug.Log($"[BattleSceneLogic] Player {attackerIndex} used {lastUsedWeapon}, cost: {cpCost} CP");
-            }
+            ApplyWeaponCost(attackerIndex, lastUsedWeapon, $"used {lastUsedWeapon}");
         }
 
         // Check if any ships were sunk
@@ -329,26 +303,21 @@ public class BattleSceneLogic : MonoBehaviour
     /// Handles bot-specific logic like adding neighbors to target list on hit.
     /// This replaces the old OnBotFinishedTurn method.
     /// </summary>
-    private void HandleBotAttackResult (CellAttackResult result)
+    private void HandleBotAttackResult (CellAttackResult result, int commandIndex)
     {
         // Successfully executed the command - update lastExecutedIndex
-        lastExecutedIndex = lastCommandIndex;
+        lastExecutedIndex = commandIndex;
 
         // Add/Subtract CP based on weapon used
         if (lastUsedWeapon == WeaponType.NormalShot)
         {
             // NormalShot gives +1 CP on each attack
-            GameManager.Instance.AddCP(2, 1);
+            ApplyNormalShotReward(2);
         }
         else
         {
             // Subtract CP cost for special weapons
-            int cpCost = GetWeaponCPCost(lastUsedWeapon);
-            if (cpCost > 0)
-            {
-                GameManager.Instance.SubtractCP(2, cpCost);
-                Debug.Log($"[BattleSceneLogic] Bot used {lastUsedWeapon}, cost: {cpCost} CP");
-            }
+            ApplyWeaponCost(2, lastUsedWeapon, $"Bot used {lastUsedWeapon}");
         }
 
         // Check if player 1's ships are sunk
@@ -408,9 +377,10 @@ public class BattleSceneLogic : MonoBehaviour
 
         // Get the selected weapon from BattleWeaponManager
         WeaponType weaponToUse = WeaponType.NormalShot;
-        if (BattleWeaponManager.Instance != null)
+        var weaponManager = BattleWeaponManager.Instance;
+        if (weaponManager != null)
         {
-            weaponToUse = BattleWeaponManager.Instance.GetCurrentWeapon();
+            weaponToUse = weaponManager.GetCurrentWeapon();
         }
 
         // Create and execute the attack command with the selected weapon
@@ -487,8 +457,55 @@ public class BattleSceneLogic : MonoBehaviour
                     legacyShip.SetVisible(true);
                 }
 
+                // Notify bot to remove this ship from TrackShip tracking if it was being hunted
+                if (gameMode == GameMode.PlayWithBot && botController != null)
+                {
+                    botController.RemoveTrackedShip(shipInstance.shipId);
+                    botController.RemoveTargetPositions(shipInstance.occupiedCells);
+                }
+
                 grid.GetGridView().SyncFromBoard();
             }
+        }
+    }
+
+    private void ApplyNormalShotReward (int playerIndex)
+    {
+        var gameManager = GameManager.Instance;
+        if (gameManager == null)
+        {
+            Debug.LogWarning("[BattleSceneLogic] GameManager not found; cannot add CP reward.");
+            return;
+        }
+
+        gameManager.AddCP(playerIndex, 1);
+    }
+
+    private void ApplyWeaponCost (int playerIndex, WeaponType weaponType, string actionLabel)
+    {
+        var gameManager = GameManager.Instance;
+        if (gameManager == null)
+        {
+            Debug.LogWarning("[BattleSceneLogic] GameManager not found; cannot apply CP cost.");
+            return;
+        }
+
+        int cpCost = GetWeaponCPCost(weaponType);
+        if (cpCost <= 0)
+        {
+            return;
+        }
+
+        gameManager.SubtractCP(playerIndex, cpCost);
+        Debug.Log($"[BattleSceneLogic] Player {playerIndex} {actionLabel}, cost: {cpCost} CP");
+    }
+
+    private void ResetSelectedWeapon ()
+    {
+        var weaponManager = BattleWeaponManager.Instance;
+        if (weaponManager != null)
+        {
+            weaponManager.SelectWeapon(WeaponType.NormalShot);
         }
     }
 
