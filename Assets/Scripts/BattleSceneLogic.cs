@@ -169,6 +169,51 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
+    public void OnPlayer1GridCellClicked (Cell cell)
+    {
+        if (gameMode == GameMode.PlayWithFriend && currentTurn == Turn.Player2)
+        {
+            HandleAttack(cell, isPlayer1Attacking: false);
+        }
+    }
+
+    public void OnPlayer2GridCellClicked (Cell cell)
+    {
+        if (currentTurn == Turn.Player1)
+        {
+            HandleAttack(cell, isPlayer1Attacking: true);
+        }
+    }
+
+    private void HandleAttack (Cell cell, bool isPlayer1Attacking)
+    {
+        if (!CanAttackCell(cell))
+        {
+            return;
+        }
+
+        Turn attacker = isPlayer1Attacking ? Turn.Player1 : Turn.Player2;
+        WeaponType weaponToUse = GetSelectedWeapon();
+
+        CreateAndExecuteAttackCommandAsync(weaponToUse, cell.gridPosition, attacker);
+
+        bool CanAttackCell (Cell selectedCell)
+        {
+            if (currentState != GameState.Playing)
+            {
+                return false;
+            }
+
+            return selectedCell.cellState == CellState.Unknown;
+        }
+
+        WeaponType GetSelectedWeapon ()
+        {
+            var weaponManager = BattleWeaponManager.Instance;
+            return weaponManager != null ? weaponManager.GetCurrentWeapon() : WeaponType.NormalShot;
+        }
+    }
+
     /// <summary>
     /// Creates an attack command and executes it asynchronously.
     /// This is the main entry point for all attack actions (player and bot).
@@ -232,69 +277,78 @@ public class BattleSceneLogic : MonoBehaviour
             return;
         }
 
-        // Successfully executed the command - update lastExecutedIndex
         lastExecutedIndex = commandIndex;
 
-        // Determine which player attacked based on the current turn
         bool isPlayer1Attacking = currentTurn == Turn.Player1;
         GridManager targetGrid = isPlayer1Attacking ? player2Grid : player1Grid;
         int attackerIndex = isPlayer1Attacking ? 1 : 2;
 
-        // Handle Radar attack (doesn't consume turn, costs CP)
-        if (lastUsedWeapon == WeaponType.Radar)
+        if (TryHandleDefensiveWeapon(attackerIndex))
         {
-            ApplyWeaponCost(attackerIndex, lastUsedWeapon, "used Radar");
-            // Radar doesn't switch turns - same player goes again
-            ResetSelectedWeapon();
             return;
         }
 
-        // Handle Anti-Aircraft attack (defensive, doesn't consume opponent's turn but costs CP)
-        if (lastUsedWeapon == WeaponType.AntiAircraft)
+        ApplyWeaponCostOrReward(attackerIndex);
+
+        if (CheckGameOverAfterSinks(targetGrid, isPlayer1Attacking))
         {
-            ApplyWeaponCost(attackerIndex, lastUsedWeapon, "set Anti-Aircraft defense");
-            // Anti-Aircraft doesn't switch turns - same player goes again
-            ResetSelectedWeapon();
             return;
         }
 
-        // Normal attacks and offensive weapons (NuclearBomb, Bomber, Torpedoes)
-        // Add/Subtract CP based on weapon used
-        if (lastUsedWeapon == WeaponType.NormalShot)
+        HandleTurnAfterAttack(result);
+        ResetSelectedWeapon();
+
+        bool TryHandleDefensiveWeapon (int index)
         {
-            // NormalShot gives +1 CP on each attack
-            ApplyNormalShotReward(attackerIndex);
-        }
-        else
-        {
-            // Subtract CP cost for special weapons
-            ApplyWeaponCost(attackerIndex, lastUsedWeapon, $"used {lastUsedWeapon}");
+            if (lastUsedWeapon == WeaponType.Radar)
+            {
+                ApplyWeaponCost(index, lastUsedWeapon, "used Radar");
+                ResetSelectedWeapon();
+                return true;
+            }
+
+            if (lastUsedWeapon == WeaponType.AntiAircraft)
+            {
+                ApplyWeaponCost(index, lastUsedWeapon, "set Anti-Aircraft defense");
+                ResetSelectedWeapon();
+                return true;
+            }
+
+            return false;
         }
 
-        // Check if any ships were sunk
-        CheckSunkShips(targetGrid);
-
-        // Check if all ships in target grid are sunk - if so, game over
-        if (targetGrid.AllShipsSunk())
+        void ApplyWeaponCostOrReward (int index)
         {
-            EndGame(player1Won: isPlayer1Attacking);
-            return;
+            if (lastUsedWeapon == WeaponType.NormalShot)
+            {
+                ApplyNormalShotReward(index);
+                return;
+            }
+
+            ApplyWeaponCost(index, lastUsedWeapon, $"used {lastUsedWeapon}");
         }
 
-        // Handle turn logic: miss = switch turn, hit = bonus turn
-        if (!result.WasHit)
+        bool CheckGameOverAfterSinks (GridManager grid, bool player1Attacking)
         {
-            SwitchTurn();
+            CheckSunkShips(grid);
+            if (!grid.AllShipsSunk())
+            {
+                return false;
+            }
+
+            EndGame(player1Won: player1Attacking);
+            return true;
         }
-        else
+
+        void HandleTurnAfterAttack (CellAttackResult attackResult)
         {
+            if (!attackResult.WasHit)
+            {
+                SwitchTurn();
+                return;
+            }
+
             Debug.Log($"[BattleSceneLogic] Bonus turn for {currentTurn}!");
-        }
-
-        // Reset weapon to NormalShot after attack
-        if (BattleWeaponManager.Instance != null)
-        {
-            BattleWeaponManager.Instance.SelectWeapon(WeaponType.NormalShot);
         }
     }
 
@@ -305,86 +359,50 @@ public class BattleSceneLogic : MonoBehaviour
     /// </summary>
     private void HandleBotAttackResult (CellAttackResult result, int commandIndex)
     {
-        // Successfully executed the command - update lastExecutedIndex
         lastExecutedIndex = commandIndex;
+        ApplyBotCpCostOrReward();
 
-        // Add/Subtract CP based on weapon used
-        if (lastUsedWeapon == WeaponType.NormalShot)
+        if (CheckBotGameOver())
         {
-            // NormalShot gives +1 CP on each attack
-            ApplyNormalShotReward(2);
+            return;
         }
-        else
+
+        HandleBotTurnAfterAttack(result);
+
+        void ApplyBotCpCostOrReward ()
         {
-            // Subtract CP cost for special weapons
+            if (lastUsedWeapon == WeaponType.NormalShot)
+            {
+                ApplyNormalShotReward(2);
+                return;
+            }
+
             ApplyWeaponCost(2, lastUsedWeapon, $"Bot used {lastUsedWeapon}");
         }
 
-        // Check if player 1's ships are sunk
-        CheckSunkShips(player1Grid);
-
-        if (player1Grid.AllShipsSunk())
+        bool CheckBotGameOver ()
         {
+            CheckSunkShips(player1Grid);
+            if (!player1Grid.AllShipsSunk())
+            {
+                return false;
+            }
+
             EndGame(player1Won: false);
-            return;
+            return true;
         }
 
-        if (result.WasHit)
+        void HandleBotTurnAfterAttack (CellAttackResult attackResult)
         {
-            // Add neighboring cells to bot's target list for next attack
-            botController?.AddNeighborsToTargets(result.Position);
+            if (attackResult.WasHit)
+            {
+                botController?.AddNeighborsToTargets(attackResult.Position);
+                botController?.MakeTurn();
+                return;
+            }
 
-            // Bot gets a bonus turn on hit
-            botController?.MakeTurn();
-        }
-        else
-        {
-            // Miss means switch turn
             SwitchTurn();
         }
-    }
-
-    public void OnPlayer1GridCellClicked (Cell cell)
-    {
-        if (gameMode == GameMode.PlayWithFriend && currentTurn == Turn.Player2)
-        {
-            HandleAttack(cell, isPlayer1Attacking: false);
-        }
-    }
-
-    public void OnPlayer2GridCellClicked (Cell cell)
-    {
-        if (currentTurn == Turn.Player1)
-        {
-            HandleAttack(cell, isPlayer1Attacking: true);
-        }
-    }
-
-    private void HandleAttack (Cell cell, bool isPlayer1Attacking)
-    {
-        if (currentState != GameState.Playing)
-        {
-            return;
-        }
-
-        if (cell.cellState != CellState.Unknown)
-        {
-            return;
-        }
-
-        // Determine the attacker based on the current turn
-        Turn attacker = isPlayer1Attacking ? Turn.Player1 : Turn.Player2;
-
-        // Get the selected weapon from BattleWeaponManager
-        WeaponType weaponToUse = WeaponType.NormalShot;
-        var weaponManager = BattleWeaponManager.Instance;
-        if (weaponManager != null)
-        {
-            weaponToUse = weaponManager.GetCurrentWeapon();
-        }
-
-        // Create and execute the attack command with the selected weapon
-        CreateAndExecuteAttackCommandAsync(weaponToUse, cell.gridPosition, attacker);
     }
 
     private void SwitchTurn ()
