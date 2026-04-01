@@ -63,7 +63,10 @@
         {
             if (Singleton != null && Singleton != this)
             {
-                Destroy(gameObject);
+                enabled = false;
+                // The way netcode communicates is by sending messages that have the networkid of the network object and the index of the network behavior.
+                //  This means that the network behaviors cannot be different between clients. 
+                // This means that you cannot delete a network behavior on one client but not another.
                 return;
             }
 
@@ -349,14 +352,13 @@
 
             _battleSceneLoaded = true;
             Debug.Log("[EGameMatch] Loading BattleScene.");
+
+            // Only server loads the scene. Clients will be notified via Netcode and transition automatically.
             var networkManager = NetworkManager.Singleton;
             if (networkManager != null && networkManager.IsServer && networkManager.SceneManager != null)
             {
                 networkManager.SceneManager.LoadScene(SceneNames.Battle, LoadSceneMode.Single);
-                return;
             }
-
-            SceneManager.LoadScene(SceneNames.Battle);
         }
 
         private void StartSetupSyncTimeoutIfServer ()

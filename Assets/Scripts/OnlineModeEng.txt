@@ -1,0 +1,31 @@
+Planning: Implement data transfer for PlayOnline mode in BattleScene. Principle: Game logic is handled on both client machines; the server only forwards the player's action command (AttackCommand).
+
+Thus, in Online mode, every time a player creates an AttackCommand, that command is loaded into the NetworkList, and then executed on the player's machine. On the other machine, when OnListChanged is activated, you retrieve the new CommandData and push it to a local Queue<ICommand> on the Client, then execute each Command sequentially.
+
+Handling connection loss:
+Use the NetworkList to store the list of Commands (if you cannot transfer commands with Unity NGO, create a CommandData), synchronized with commandHistory. However, because the NetworkList is synced immediately after network connection, Commands are executed sequentially according to their order, using the local variable `int lastExecutedIndex` to determine which command has been executed. Ensure that upon reconnection, all actions are blocked until Commands are synchronized.
+
+When editing for Online mode, try to limit modifications as much as possible. If you need to add too much logic to SetupScene, SetupWeaponScene, or BattleScene, you can create a class that inherits from the old class and override it.
+
+Note: All NetworkVariableBase instances must be initialized.
+
+Consider the Race Condition issue when using commands: incorrect order, lost commands, two commands affecting the same location. Solution: Add sequence numbers, timestamps, place commands in a queue, and only update when there is a discrepancy. This is a turn-based game, so there are few cases where both sides are active at the same time (because if it's not the correct turn, it will be blocked before the command is sent).
+Note: ClientRpc/ServerRPC is outdated. Use the [Rpc] attribute Se.
+
+Workflow:
+
+When the player selects the playOnlineButton, the GameMode.PlayOnline enum will be set.
+
+Players then proceed to the SetupWeaponScene (only if GameMap.AdvancedMap) and SetupScene, similar to the other two GameModes. Before the BattleScene, players enter the OnlineConnectionScene, where they create/join a match.
+
+Note: Matchmaking in the OnlineConnectionScene is done after the SetupScene and before the BattleScene. Therefore, on each player's machine, the game flow will be similar to PlayWithBot mode: via one SetupWeaponScene (if AdvancedMap) and one SetupScene.
+
+Only when two online players are matched and enter the BattleScene will the data be sent and configured (synced via EGameMatch).
+
+The OnlineConnectionScene contains custom scripts: MatchRoleMenuViewController, MatchGuestConnectionMenu, MatchGuestConnectionMenuViewController, MatchHostConnectionMenu, and MatchHostConnectionMenuViewController. These scripts can be used, but require further modification. Find the scripts at Asset/OnlineMode/ConnectionMenu.
+
+After the match, the player goes to BattleScene. ShipPlacementData and WeaponType data are transferred to the match. Note: the host player will always be Player1.
+
+In the opening scene, NetworkManager, UnityTransport, and NetworkObject from Unity are already present.
+
+NetworkObject is attached to EGameMatch.cs.
