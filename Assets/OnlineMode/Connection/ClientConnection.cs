@@ -14,8 +14,17 @@
                 return;
             }
 
-            await EUnityMultiplayerServices.StartRelay_Async(joinString);
-            NetworkManager.Singleton.StartClient();
+            bool relayReady = await EUnityMultiplayerServices.StartRelay_Async(joinString);
+            if (!relayReady)
+            {
+                Debug.LogWarning("Join failed. Relay setup was not completed.");
+                return;
+            }
+
+            if (!NetworkManager.Singleton.StartClient())
+            {
+                Debug.LogError("Failed to start client.");
+            }
 
             bool InvalidToExecute ()
             {

@@ -1,6 +1,7 @@
 ﻿namespace Assets.OnlineMode.Connection.UnityMultiplayerServices
 {
     using System.Threading.Tasks;
+    using Assets.OnlineMode.Connection;
     using Assets.OnlineMode.ConnectionMenu;
     using Unity.Netcode;
     using Unity.Netcode.Transports.UTP;
@@ -10,23 +11,22 @@
 
     internal static class UnityRelay
     {
-        static UnityRelay ()
-        {
-            Transport = NetworkManager.Singleton.NetworkConfig.NetworkTransport as UnityTransport;
-            RelayConnectionType = "dtls";
-        }
+        private const string RelayConnectionType = "dtls";
 
-        public static async Task StartRelay_Async ()
+        public static async Task<bool> StartRelay_Async ()
         {
             var relayAllocation = await RelayAllocation_Async();
             if (relayAllocation == null)
             {
-                Debug.LogError("Something's wrong, check the stack trace");
-                return;
+                return false;
             }
 
-            ConfigureRelayForTransport();
-            await SetMatchIdInMatchHostMenu();
+            if (!TryConfigureRelayForTransport(relayAllocation))
+            {
+                return false;
+            }
+
+            return await SetMatchIdInMatchHostMenu();
 
             static async Task<Allocation> RelayAllocation_Async ()
             {
@@ -41,34 +41,30 @@
                 }
             }
 
-            void ConfigureRelayForTransport ()
-            {
-                Transport.SetRelayServerData(serverData: AllocationUtils.ToRelayServerData(relayAllocation, RelayConnectionType));
-            }
-
-            async Task SetMatchIdInMatchHostMenu ()
+            async Task<bool> SetMatchIdInMatchHostMenu ()
             {
                 try
                 {
                     MatchHostConnectionMenu.MatchId = await RelayService.Instance.GetJoinCodeAsync(relayAllocation.AllocationId);
+                    return true;
                 }
                 catch (RelayServiceException e)
                 {
                     Debug.LogError(e);
+                    return false;
                 }
             }
         }
 
-        public static async Task StartRelay_Async (string joinString)
+        public static async Task<bool> StartRelay_Async (string joinString)
         {
             var relayAllocation = await RelayAllocation_Async();
             if (relayAllocation == null)
             {
-                Debug.LogError("Something's wrong, check the stack trace");
-                return;
+                return false;
             }
 
-            ConfigureRelayForTransport();
+            return TryConfigureRelayForTransport(relayAllocation);
 
             async Task<JoinAllocation> RelayAllocation_Async ()
             {
@@ -78,18 +74,66 @@
                 }
                 catch (RelayServiceException e)
                 {
-                    Debug.LogError(e);
+                    bool joinCodeNotFound = e.Message != null && e.Message.ToLowerInvariant().Contains("join code not found");
+                    string errorMessage = joinCodeNotFound
+                        ? "Join code not found. Please check and try again."
+                        : "Unable to join match. Please try again.";
+
+                    if (joinCodeNotFound)
+                    {
+                        Debug.LogWarning($"[Relay] {errorMessage}");
+                    }
+                    else
+                    {
+                        Debug.LogError(e);
+                    }
+
+                    ConnectionErrorState.Set(errorMessage);
                     return null;
                 }
             }
 
-            void ConfigureRelayForTransport ()
-            {
-                Transport.SetRelayServerData(serverData: AllocationUtils.ToRelayServerData(relayAllocation, RelayConnectionType));
-            }
         }
 
-        private static UnityTransport Transport { get; }
-        private static string RelayConnectionType { get; }
+        private static bool TryConfigureRelayForTransport (Allocation allocation)
+        {
+            var transport = GetTransport();
+            if (transport == null)
+            {
+                return false;
+            }
+
+            transport.SetRelayServerData(serverData: AllocationUtils.ToRelayServerData(allocation, RelayConnectionType));
+            return true;
+        }
+
+        private static bool TryConfigureRelayForTransport (JoinAllocation allocation)
+        {
+            var transport = GetTransport();
+            if (transport == null)
+            {
+                return false;
+            }
+
+            transport.SetRelayServerData(serverData: AllocationUtils.ToRelayServerData(allocation, RelayConnectionType));
+            return true;
+        }
+
+        private static UnityTransport GetTransport ()
+        {
+            if (NetworkManager.Singleton == null)
+            {
+                Debug.LogError("NetworkManager.Singleton is null.");
+                return null;
+            }
+
+            var transport = NetworkManager.Singleton.NetworkConfig.NetworkTransport as UnityTransport;
+            if (transport == null)
+            {
+                Debug.LogError("NetworkTransport is not UnityTransport.");
+            }
+
+            return transport;
+        }
     }
 }

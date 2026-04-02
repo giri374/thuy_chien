@@ -42,6 +42,8 @@ public class BattleSceneLogic : MonoBehaviour
     private int commandCounter = 0;  // Counter for assigning sequential indices to commands
     private int lastExecutedIndex = -1;  // Index of the last successfully executed command
 
+    private bool _inputBlocked;
+
     public GameState currentState = GameState.Playing;
     public Turn currentTurn = Turn.Player1;
 
@@ -88,7 +90,72 @@ public class BattleSceneLogic : MonoBehaviour
         currentTurn = Turn.Player1;
         onTurnChanged?.Invoke(currentTurn, gameMode);
 
+        // NEW: subscribe to online command relay
+        if (gameMode == GameMode.PlayOnline)
+        {
+            var match = Assets.OnlineMode.GameMatch.EGameMatch.Singleton;
+            if (match != null)
+            {
+                match.OnCommandReceived += ExecuteReceivedCommand;
+                match.OnOpponentDisconnectedChanged += HandleOpponentDisconnectedChanged;
+            }
+            else
+            {
+                Debug.LogWarning("[BattleSceneLogic] EGameMatch.Singleton null at Start — online commands won't execute.");
+            }
+        }
+
         Debug.Log($"[BattleSceneManager] Game started | Mode: {gameMode}");
+    }
+
+    private void HandleOpponentDisconnectedChanged (bool isDisconnected)
+    {
+        if (isDisconnected)
+        {
+            Debug.Log("[BattleSceneLogic] Opponent disconnected — blocking input.");
+            // TODO: show "Waiting for opponent..." overlay via your UI manager
+            // For now, currentState blocks all attacks because we add a check in HandleOnlineAttack:
+            _inputBlocked = true;
+        }
+        else
+        {
+            Debug.Log("[BattleSceneLogic] Opponent reconnected — unblocking input.");
+            _inputBlocked = false;
+            // TODO: hide overlay
+        }
+    }
+
+    private void OnDestroy ()
+    {
+        if (gameMode == GameMode.PlayOnline)
+        {
+            var match = Assets.OnlineMode.GameMatch.EGameMatch.Singleton;
+            if (match != null)
+            {
+                match.OnCommandReceived -= ExecuteReceivedCommand;
+            }
+        }
+    }
+
+    private void ExecuteReceivedCommand (Assets.OnlineMode.GameMatch.CommandData data)
+    {
+        Debug.Log($"[BattleSceneLogic] ExecuteReceivedCommand: index={data.CommandIndex} weapon={data.WeaponType} pos=({data.X},{data.Y}) attacker={data.Attacker}");
+        // Guard: skip if already executed (duplicate protection — Step 8)
+        if (data.CommandIndex <= lastExecutedIndex)
+        {
+            Debug.LogWarning($"[BattleSceneLogic] Skipping duplicate command index={data.CommandIndex}");
+            return;
+        }
+
+        var weapon = (WeaponType) data.WeaponType;
+        var pos = new UnityEngine.Vector2Int(data.X, data.Y);
+        var attacker = (Turn) data.Attacker;
+
+        // CreateAndExecuteAttackCommandAsync(weapon, pos, attacker);
+        ExecuteCommandDirectly(weapon, pos, attacker, data.CommandIndex);
+
+        // Notify EGameMatch that this client has executed up to this index
+        Assets.OnlineMode.GameMatch.EGameMatch.Singleton?.NotifyCommandExecuted(data.CommandIndex);
     }
 
     private void SetupBotIfNeeded ()
@@ -174,15 +241,41 @@ public class BattleSceneLogic : MonoBehaviour
         if (gameMode == GameMode.PlayWithFriend && currentTurn == Turn.Player2)
         {
             HandleAttack(cell, isPlayer1Attacking: false);
+            return;
+        }
+
+        if (gameMode == GameMode.PlayOnline && currentTurn == Turn.Player2)
+        {
+            // Only the guest (Player2) can click here during their turn
+            if (!IsLocalPlayer2())
+            {
+                return;
+            }
+
+            HandleOnlineAttack(cell, isPlayer1Attacking: false);
         }
     }
 
     public void OnPlayer2GridCellClicked (Cell cell)
     {
-        if (currentTurn == Turn.Player1)
+        if (currentTurn != Turn.Player1)
         {
-            HandleAttack(cell, isPlayer1Attacking: true);
+            return;
         }
+
+        if (gameMode == GameMode.PlayOnline)
+        {
+            // Only the host (Player1) can click here during their turn
+            if (!IsLocalPlayer1())
+            {
+                return;
+            }
+
+            HandleOnlineAttack(cell, isPlayer1Attacking: true);
+            return;
+        }
+
+        HandleAttack(cell, isPlayer1Attacking: true);
     }
 
     private void HandleAttack (Cell cell, bool isPlayer1Attacking)
@@ -214,6 +307,61 @@ public class BattleSceneLogic : MonoBehaviour
         }
     }
 
+    private bool IsLocalPlayer1 ()
+    {
+        var nm = Unity.Netcode.NetworkManager.Singleton;
+        return nm != null && nm.IsHost;
+    }
+
+    private bool IsLocalPlayer2 ()
+    {
+        var nm = Unity.Netcode.NetworkManager.Singleton;
+        return nm != null && nm.IsClient && !nm.IsHost;
+    }
+
+    private void HandleOnlineAttack (Cell cell, bool isPlayer1Attacking)
+    {
+        if (_inputBlocked)
+        {
+            return;
+        }
+
+        if (currentState != GameState.Playing)
+        {
+            return;
+        }
+
+        if (cell.cellState != CellState.Unknown)
+        {
+            return;
+        }
+
+        var match = Assets.OnlineMode.GameMatch.EGameMatch.Singleton;
+        if (match == null)
+        {
+            Debug.LogWarning("[BattleSceneLogic] EGameMatch.Singleton is null — cannot send attack.");
+            return;
+        }
+
+        WeaponType weapon = BattleWeaponManager.Instance != null
+            ? BattleWeaponManager.Instance.GetCurrentWeapon()
+            : WeaponType.NormalShot;
+
+        Turn attacker = isPlayer1Attacking ? Turn.Player1 : Turn.Player2;
+
+        var data = new Assets.OnlineMode.GameMatch.CommandData
+        {
+            WeaponType = (int) weapon,
+            X = cell.gridPosition.x,
+            Y = cell.gridPosition.y,
+            Attacker = (int) attacker,
+            CommandIndex = -1  // placeholder — server overwrites this
+        };
+
+        Debug.Log($"[BattleSceneLogic] Sending online attack: {data.CommandIndex} weapon={weapon} pos={cell.gridPosition} attacker={attacker}");
+        match.SubmitAttack_ServerRpc(data);
+    }
+
     /// <summary>
     /// Creates an attack command and executes it asynchronously.
     /// This is the main entry point for all attack actions (player and bot).
@@ -242,6 +390,20 @@ public class BattleSceneLogic : MonoBehaviour
         {
             await commandExecutor.ExecuteAsync(command, result => HandleAttackResult(result, currentCommandIndex));
         }
+    }
+
+    // New internal method — used ONLY by ExecuteReceivedCommand
+    private async void ExecuteCommandDirectly (WeaponType weaponType, Vector2Int position, Turn attacker, int commandIndex)
+    {
+        lastUsedWeapon = weaponType;
+
+        IAttackCommand command = new AttackCommand(weaponType, position, attacker, commandIndex);
+        commandHistory.RecordCommand(command);
+
+        if (weaponType != WeaponType.NormalShot)
+            await commandExecutor.ExecuteWeaponAttackAsync(command, result => HandleAttackResult(result, commandIndex));
+        else
+            await commandExecutor.ExecuteAsync(command, result => HandleAttackResult(result, commandIndex));
     }
 
     /// <summary>

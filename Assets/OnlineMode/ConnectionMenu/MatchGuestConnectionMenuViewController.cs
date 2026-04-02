@@ -44,7 +44,7 @@ namespace Assets.OnlineMode.ConnectionMenu
             StartConnectionWatch();
         }
 
-        private string JoinString => _matchIdTextController.text.ToUpper();
+        private string JoinString => _matchIdTextController.text.Trim().ToUpperInvariant();
 
         private void ConfirmJoinMatch ()
         {
@@ -58,13 +58,24 @@ namespace Assets.OnlineMode.ConnectionMenu
             async Task JoinMatch ()
             {
                 SetJoinButtonInteractable(false);
+                SetRetryInteractable(false);
+
+                // Reset previous attempt state so the next join uses a clean network state.
+                _wasConnected = false;
+                EConnection.Disconnect();
+
+                if (_waitForHostRoutine != null)
+                {
+                    StopCoroutine(_waitForHostRoutine);
+                    _waitForHostRoutine = null;
+                }
 
                 UpdateStatus("Connecting...");
                 await MatchGuestConnectionMenu.ConnectToMatch_Async(JoinString);
 
                 if (!EConnection.ReadyToConnect())
                 {
-                    UpdateStatus("Failed to connect. Check join code.");
+                    UpdateStatus(ConnectionErrorState.GetOrDefault("Failed to connect. Check join code."));
                     SetJoinButtonInteractable(true);
                     SetRetryInteractable(true);
                     return;

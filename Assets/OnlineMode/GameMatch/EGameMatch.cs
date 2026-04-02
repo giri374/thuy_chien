@@ -15,6 +15,17 @@
 
         public bool IsSetupSynced { get; private set; }
 
+        private readonly NetworkVariable<bool> _opponentDisconnected = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+        public event Action<bool> OnOpponentDisconnectedChanged;
+
+        private ulong _disconnectedClientId = ulong.MaxValue;
+        private Coroutine _disconnectTimeoutCoroutine;
+        private const float DisconnectTimeoutSeconds = 60f;
+        private int _localLastExecutedIndex = -1;
+
         private struct PlayerSetupPayload
         {
             public ShipPlacementNet[] Placements;
@@ -82,6 +93,11 @@
             EnsurePlayerIdArray();
             Array.Clear(_allPlayersClientId, 0, _allPlayersClientId.Length);
             _setupByClientId = new Dictionary<ulong, PlayerSetupPayload>();
+
+            _opponentDisconnected.OnValueChanged += (_, newValue) =>
+            {
+                OnOpponentDisconnectedChanged?.Invoke(newValue);
+            };
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -90,13 +106,31 @@
             _singleton = null;
         }
 
-        private void OnDestroy ()
+        public override void OnDestroy ()
         {
             if (_singleton == this)
             {
                 _singleton = null;
             }
+
+            base.OnDestroy();
         }
+
+        // In EGameMatch — field declarations (alongside _singleton, _allPlayersClientId, etc.)
+
+        // The persistent battle record. Auto-synced to any client that (re)connects.
+        // MUST be initialized as a field, not in Awake — Netcode requirement.
+        private readonly NetworkList<CommandData> _battleCommands = new NetworkList<CommandData>(
+            null,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+
+        // Tracks the highest CommandIndex that has been broadcast and acknowledged by the server.
+        // Reconnecting clients use this to know how many commands they missed.
+        private readonly NetworkVariable<int> _serverCommandCount = new NetworkVariable<int>(
+            0,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
 
         //NetworkManager.Singleton  might be null before NetworkManager game object finishes its Awake(),
         //NetworkObject might be null before Start() finishes .
@@ -130,6 +164,30 @@
             void OnNewClientConnected (ulong clientId)
             {
                 EnsurePlayerIdArray();
+
+                // NEW: check if this is the disconnected player returning
+                if (_opponentDisconnected.Value && clientId == _disconnectedClientId)
+                {
+                    Debug.Log($"[EGameMatch] Client {clientId} reconnected.");
+
+                    // Cancel the timeout
+                    if (_disconnectTimeoutCoroutine != null)
+                    {
+                        StopCoroutine(_disconnectTimeoutCoroutine);
+                        _disconnectTimeoutCoroutine = null;
+                    }
+
+                    _opponentDisconnected.Value = false;
+                    _disconnectedClientId = ulong.MaxValue;
+
+                    // Tell the returning client to replay from where it left off.
+                    // We pass the client's last known index via a TargetClientId RPC.
+                    // Since we don't store the client's lastExecutedIndex server-side,
+                    // we simply tell it the current server count — the client will figure
+                    // out its own gap by comparing against its local lastExecutedIndex.
+                    SyncOnReconnect_ClientRpc(RpcTarget.Single(clientId, RpcTargetUse.Temp));
+                    return;
+                }
 
                 if (MatchStartedOnce())
                 {
@@ -484,5 +542,124 @@
             }
         }
 
+        // ── Battle Command Relay ────────────────────────────────────────
+
+        public event System.Action<CommandData> OnCommandReceived;
+
+        [Rpc(SendTo.Server)]
+        public void SubmitAttack_ServerRpc (CommandData data, RpcParams rpcParams = default)
+        {
+            Debug.Log($"[EGameMatch] SubmitAttack_ServerRpc from clientId={rpcParams.Receive.SenderClientId} cmd={data.CommandIndex}");
+
+            // Append to the persistent list BEFORE broadcasting.
+            // This ensures the record exists even if broadcast delivery fails.
+            data.CommandIndex = _battleCommands.Count; // 0-based, before Add
+
+            Debug.Log($"[EGameMatch] SubmitAttack_ServerRpc from clientId={rpcParams.Receive.SenderClientId}, assigned index={data.CommandIndex}");
+
+            _battleCommands.Add(data);
+            _serverCommandCount.Value = _battleCommands.Count;
+
+            BroadcastAttack_ClientsAndHostRpc(data);
+        }
+
+        [Rpc(SendTo.ClientsAndHost)]
+        private void BroadcastAttack_ClientsAndHostRpc (CommandData data)
+        {
+            Debug.Log($"[EGameMatch] BroadcastAttack received cmd={data.CommandIndex} weapon={data.WeaponType} pos=({data.X},{data.Y}) attacker={data.Attacker}");
+            OnCommandReceived?.Invoke(data);
+        }
+
+        // Disconnection handling: if a client disconnects mid-match, set a flag and start a timeout.
+
+        // Call this in OnNetworkSpawn, inside the server-only InitializeGameMatch local function,
+        // alongside the existing OnClientConnectedCallback subscription:
+        // NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+
+        private void OnClientDisconnected (ulong clientId)
+        {
+            // Only care about the guest (clientId != 0) disconnecting mid-battle
+            if (clientId == 0) return; // host disconnect = game over, handle separately
+            if (!IsServer) return;
+
+            Debug.LogWarning($"[EGameMatch] Client {clientId} disconnected.");
+            _disconnectedClientId = clientId;
+            _opponentDisconnected.Value = true;
+
+            _disconnectTimeoutCoroutine = StartCoroutine(DisconnectTimeoutCoroutine());
+        }
+
+        // In EGameMatch:
+        private IEnumerator DisconnectTimeoutCoroutine ()
+        {
+            Debug.Log($"[EGameMatch] Disconnect timeout started ({DisconnectTimeoutSeconds}s).");
+            yield return new WaitForSeconds(DisconnectTimeoutSeconds);
+
+            // If opponent is still gone after timeout, abort the match
+            if (_opponentDisconnected.Value)
+            {
+                Debug.LogWarning("[EGameMatch] Disconnect timeout expired — aborting match.");
+                AbortMatch_ClientsAndHostRpc("Opponent left the game.");
+            }
+        }
+
+        [Rpc(SendTo.ClientsAndHost)]
+        private void AbortMatch_ClientsAndHostRpc (string reason)
+        {
+            Debug.LogWarning($"[EGameMatch] Match aborted: {reason}");
+            // Disconnect cleanly then go to main menu
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            {
+                NetworkManager.Singleton.Shutdown();
+            }
+            SceneManager.LoadScene(SceneNames.MainMenu);
+        }
+
+        [Rpc(SendTo.SpecifiedInParams)]
+        private void SyncOnReconnect_ClientRpc (RpcParams rpcParams = default)
+        {
+            Debug.Log($"[EGameMatch] SyncOnReconnect received. Server has {_serverCommandCount.Value} commands. Local lastExecutedIndex={_localLastExecutedIndex}.");
+            StartCoroutine(ReplayMissingCommands());
+        }
+
+        // Called by BattleSceneLogic after each ExecuteReceivedCommand:
+        public void NotifyCommandExecuted (int commandIndex)
+        {
+            _localLastExecutedIndex = commandIndex;
+        }
+
+        // The replay coroutine:
+        private IEnumerator ReplayMissingCommands ()
+        {
+            // Block input on BattleSceneLogic while replaying
+            OnOpponentDisconnectedChanged?.Invoke(true); // reuse the block flag temporarily
+
+            // Wait one frame to ensure _battleCommands is fully synced
+            yield return null;
+
+            int replayFrom = _localLastExecutedIndex + 1;
+            int replayTo = _battleCommands.Count;
+
+            Debug.Log($"[EGameMatch] Replaying commands [{replayFrom}..{replayTo - 1}]");
+
+            for (int i = replayFrom; i < replayTo; i++)
+            {
+                var cmd = _battleCommands[i];
+                Debug.Log($"[EGameMatch] Replaying command index={cmd.CommandIndex}");
+                OnCommandReceived?.Invoke(cmd);
+
+                // Wait for the command to execute before firing the next one.
+                // ExecuteReceivedCommand is async — yield one frame between each.
+                yield return new WaitForSeconds(0.15f); // small delay for visual clarity
+            }
+
+            // Unblock input
+            OnOpponentDisconnectedChanged?.Invoke(false);
+            Debug.Log("[EGameMatch] Replay complete.");
+
+        }
+
+
     }
+
 }

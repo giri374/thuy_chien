@@ -28,4 +28,8 @@ After the match, the player goes to BattleScene. ShipPlacementData and WeaponTyp
 
 In the opening scene, NetworkManager, UnityTransport, and NetworkObject from Unity are already present.
 
-NetworkObject is attached to EGameMatch.cs.
+NetworkObject is attached to EGameMatch.cs. EGameMatch is spawn in OnlineConnectionScene and dont destroy when move to BattleScene.
+
+Avoid common mistakes:
+Mistake 1: The type 'Assets.OnlineMode.GameMatch.AttackCommandNet' cannot be used as ype parameter 'T' in the generic type or method 'NetworkList<T>'. There is no boxing conversion from 'Assets.OnlineModte.GameMatch.AttackCommandNet' to 'System.IEquatable<Assets.OnlineMode.GameMatch.AttackCommandNet>'
+Mistake 2: EGameMatch._battleCommands cannot be null. All NetworkVariableBase instances must be initialized.

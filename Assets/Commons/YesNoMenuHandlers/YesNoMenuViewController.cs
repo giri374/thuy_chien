@@ -71,6 +71,8 @@ namespace Assets.Commons.YesNoMenuHandlers
 
         private void ShowThisMenu ()
         {
+            _buttonYes.interactable = true;
+            _buttonNo.interactable = true;
             gameObject.SetActive(true);
         }
 

@@ -14,8 +14,17 @@
                 return;
             }
 
-            await EUnityMultiplayerServices.StartRelay_Async();
-            NetworkManager.Singleton.StartHost();
+            bool relayReady = await EUnityMultiplayerServices.StartRelay_Async();
+            if (!relayReady)
+            {
+                Debug.LogWarning("Host start aborted. Relay setup was not completed.");
+                return;
+            }
+
+            if (!NetworkManager.Singleton.StartHost())
+            {
+                Debug.LogError("Failed to start host.");
+            }
 
             static bool InvalidToExecute ()
             {
