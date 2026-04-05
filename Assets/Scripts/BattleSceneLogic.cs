@@ -36,13 +36,10 @@ public class BattleSceneLogic : MonoBehaviour
     [Header("Bot (chỉ dùng khi PlayWithBot)")]
     public BotController botController;
 
-    [Header("Command System")]
-    private AttackCommandHistory commandHistory;
-    private AttackCommandExecutor commandExecutor;
-    private int commandCounter = 0;  // Counter for assigning sequential indices to commands
-    private int lastExecutedIndex = -1;  // Index of the last successfully executed command
-
-    private bool _inputBlocked;
+    [Header("Extracted Services")]
+    private CommandExecutionCoordinator commandCoordinator;
+    private AttackResolutionService attackResolutionService;
+    private OnlineBattleRelay onlineBattleRelay;
 
     public GameState currentState = GameState.Playing;
     public Turn currentTurn = Turn.Player1;
@@ -50,9 +47,6 @@ public class BattleSceneLogic : MonoBehaviour
     private GameMode gameMode => GameManager.Instance != null
         ? GameManager.Instance.gameMode
         : GameMode.PlayWithBot;
-
-    // ── Weapon System ──────────────────────────────────────────
-    private WeaponType lastUsedWeapon = WeaponType.NormalShot;
 
     public delegate void TurnChangedHandler (Turn currentTurn, GameMode gameMode);
     public delegate void PassAndPlayNeededHandler (Turn nextTurn);
@@ -65,15 +59,7 @@ public class BattleSceneLogic : MonoBehaviour
     private void Awake ()
     {
         Instance = this;
-
-        // Initialize command system
-        commandHistory = new AttackCommandHistory();
-
-        // Create and initialize the executor
-        if (commandExecutor == null)
-        {
-            commandExecutor = gameObject.AddComponent<AttackCommandExecutor>();
-        }
+        attackResolutionService = new AttackResolutionService();
     }
 
     private void Start ()
@@ -81,80 +67,58 @@ public class BattleSceneLogic : MonoBehaviour
         SetupBotIfNeeded();
         LoadAllShips();
 
-        // Initialize command executor with grid references
-        if (commandExecutor != null)
-        {
-            commandExecutor.Initialize(player1Grid, player2Grid);
-        }
+        commandCoordinator = new CommandExecutionCoordinator(this, player1Grid, player2Grid);
+        commandCoordinator.OnCommandExecuted += HandleCommandExecuted;
+
+        onlineBattleRelay = new OnlineBattleRelay();
+        onlineBattleRelay.OnCommandReceived += ExecuteReceivedCommand;
 
         currentTurn = Turn.Player1;
         onTurnChanged?.Invoke(currentTurn, gameMode);
 
-        // NEW: subscribe to online command relay
         if (gameMode == GameMode.PlayOnline)
         {
-            var match = Assets.OnlineMode.GameMatch.EGameMatch.Singleton;
-            if (match != null)
-            {
-                match.OnCommandReceived += ExecuteReceivedCommand;
-                match.OnOpponentDisconnectedChanged += HandleOpponentDisconnectedChanged;
-            }
-            else
-            {
-                Debug.LogWarning("[BattleSceneLogic] EGameMatch.Singleton null at Start — online commands won't execute.");
-            }
+            onlineBattleRelay.Subscribe();
         }
 
         Debug.Log($"[BattleSceneManager] Game started | Mode: {gameMode}");
     }
 
-    private void HandleOpponentDisconnectedChanged (bool isDisconnected)
-    {
-        if (isDisconnected)
-        {
-            Debug.Log("[BattleSceneLogic] Opponent disconnected — blocking input.");
-            // TODO: show "Waiting for opponent..." overlay via your UI manager
-            // For now, currentState blocks all attacks because we add a check in HandleOnlineAttack:
-            _inputBlocked = true;
-        }
-        else
-        {
-            Debug.Log("[BattleSceneLogic] Opponent reconnected — unblocking input.");
-            _inputBlocked = false;
-            // TODO: hide overlay
-        }
-    }
-
     private void OnDestroy ()
     {
-        if (gameMode == GameMode.PlayOnline)
+        if (commandCoordinator != null)
         {
-            var match = Assets.OnlineMode.GameMatch.EGameMatch.Singleton;
-            if (match != null)
-            {
-                match.OnCommandReceived -= ExecuteReceivedCommand;
-            }
+            commandCoordinator.OnCommandExecuted -= HandleCommandExecuted;
+        }
+
+        if (onlineBattleRelay != null)
+        {
+            onlineBattleRelay.OnCommandReceived -= ExecuteReceivedCommand;
+            onlineBattleRelay.Unsubscribe();
         }
     }
 
     private void ExecuteReceivedCommand (Assets.OnlineMode.GameMatch.CommandData data)
     {
         Debug.Log($"[BattleSceneLogic] ExecuteReceivedCommand: index={data.CommandIndex} weapon={data.WeaponType} pos=({data.X},{data.Y}) attacker={data.Attacker}");
-        // Guard: skip if already executed (duplicate protection — Step 8)
-        if (data.CommandIndex <= lastExecutedIndex)
+        if (commandCoordinator == null)
+        {
+            Debug.LogWarning("[BattleSceneLogic] Command coordinator is null — cannot execute received command.");
+            return;
+        }
+
+        if (commandCoordinator.HasAlreadyExecuted(data.CommandIndex))
         {
             Debug.LogWarning($"[BattleSceneLogic] Skipping duplicate command index={data.CommandIndex}");
             return;
         }
 
         var weapon = (WeaponType) data.WeaponType;
-        var pos = new UnityEngine.Vector2Int(data.X, data.Y);
+        var pos = new Vector2Int(data.X, data.Y);
         var attacker = (Turn) data.Attacker;
 
-        // CreateAndExecuteAttackCommandAsync(weapon, pos, attacker);
-        ExecuteCommandDirectly(weapon, pos, attacker, data.CommandIndex);
+        commandCoordinator.ExecuteNetworkCommand(weapon, pos, attacker, data.CommandIndex);
 
-        // Notify EGameMatch that this client has executed up to this index
         Assets.OnlineMode.GameMatch.EGameMatch.Singleton?.NotifyCommandExecuted(data.CommandIndex);
     }
 
@@ -246,13 +210,12 @@ public class BattleSceneLogic : MonoBehaviour
 
         if (gameMode == GameMode.PlayOnline && currentTurn == Turn.Player2)
         {
-            // Only the guest (Player2) can click here during their turn
-            if (!IsLocalPlayer2())
+            if (onlineBattleRelay == null || !onlineBattleRelay.IsLocalPlayer2())
             {
                 return;
             }
 
-            HandleOnlineAttack(cell, isPlayer1Attacking: false);
+            onlineBattleRelay.TrySendAttack(cell, isPlayer1Attacking: false, currentState, GetSelectedWeapon());
         }
     }
 
@@ -265,13 +228,12 @@ public class BattleSceneLogic : MonoBehaviour
 
         if (gameMode == GameMode.PlayOnline)
         {
-            // Only the host (Player1) can click here during their turn
-            if (!IsLocalPlayer1())
+            if (onlineBattleRelay == null || !onlineBattleRelay.IsLocalPlayer1())
             {
                 return;
             }
 
-            HandleOnlineAttack(cell, isPlayer1Attacking: true);
+            onlineBattleRelay.TrySendAttack(cell, isPlayer1Attacking: true, currentState, GetSelectedWeapon());
             return;
         }
 
@@ -280,130 +242,41 @@ public class BattleSceneLogic : MonoBehaviour
 
     private void HandleAttack (Cell cell, bool isPlayer1Attacking)
     {
-        if (!CanAttackCell(cell))
+        if (cell == null)
         {
+            return;
+        }
+
+        if (currentState != GameState.Playing || cell.cellState != CellState.Unknown)
+        {
+            return;
+        }
+
+        if (commandCoordinator == null)
+        {
+            Debug.LogWarning("[BattleSceneLogic] Command coordinator is null — cannot execute attack.");
             return;
         }
 
         Turn attacker = isPlayer1Attacking ? Turn.Player1 : Turn.Player2;
-        WeaponType weaponToUse = GetSelectedWeapon();
-
-        CreateAndExecuteAttackCommandAsync(weaponToUse, cell.gridPosition, attacker);
-
-        bool CanAttackCell (Cell selectedCell)
-        {
-            if (currentState != GameState.Playing)
-            {
-                return false;
-            }
-
-            return selectedCell.cellState == CellState.Unknown;
-        }
-
-        WeaponType GetSelectedWeapon ()
-        {
-            var weaponManager = BattleWeaponManager.Instance;
-            return weaponManager != null ? weaponManager.GetCurrentWeapon() : WeaponType.NormalShot;
-        }
+        commandCoordinator.ExecutePlayerAttack(GetSelectedWeapon(), cell.gridPosition, attacker);
     }
 
-    private bool IsLocalPlayer1 ()
+    private WeaponType GetSelectedWeapon ()
     {
-        var nm = Unity.Netcode.NetworkManager.Singleton;
-        return nm != null && nm.IsHost;
+        var weaponManager = BattleWeaponManager.Instance;
+        return weaponManager != null ? weaponManager.GetCurrentWeapon() : WeaponType.NormalShot;
     }
 
-    private bool IsLocalPlayer2 ()
+    private void HandleCommandExecuted (CellAttackResult result, int commandIndex, WeaponType weaponType, Turn attacker, bool isBotAttack)
     {
-        var nm = Unity.Netcode.NetworkManager.Singleton;
-        return nm != null && nm.IsClient && !nm.IsHost;
-    }
-
-    private void HandleOnlineAttack (Cell cell, bool isPlayer1Attacking)
-    {
-        if (_inputBlocked)
+        if (isBotAttack)
         {
+            HandleBotAttackResult(result, weaponType);
             return;
         }
 
-        if (currentState != GameState.Playing)
-        {
-            return;
-        }
-
-        if (cell.cellState != CellState.Unknown)
-        {
-            return;
-        }
-
-        var match = Assets.OnlineMode.GameMatch.EGameMatch.Singleton;
-        if (match == null)
-        {
-            Debug.LogWarning("[BattleSceneLogic] EGameMatch.Singleton is null — cannot send attack.");
-            return;
-        }
-
-        WeaponType weapon = BattleWeaponManager.Instance != null
-            ? BattleWeaponManager.Instance.GetCurrentWeapon()
-            : WeaponType.NormalShot;
-
-        Turn attacker = isPlayer1Attacking ? Turn.Player1 : Turn.Player2;
-
-        var data = new Assets.OnlineMode.GameMatch.CommandData
-        {
-            WeaponType = (int) weapon,
-            X = cell.gridPosition.x,
-            Y = cell.gridPosition.y,
-            Attacker = (int) attacker,
-            CommandIndex = -1  // placeholder — server overwrites this
-        };
-
-        Debug.Log($"[BattleSceneLogic] Sending online attack: {data.CommandIndex} weapon={weapon} pos={cell.gridPosition} attacker={attacker}");
-        match.SubmitAttack_ServerRpc(data);
-    }
-
-    /// <summary>
-    /// Creates an attack command and executes it asynchronously.
-    /// This is the main entry point for all attack actions (player and bot).
-    /// The result is handled via the callback, which then invokes the normal game flow logic.
-    /// Routes through the weapon system for special weapons.
-    /// </summary>
-    private async void CreateAndExecuteAttackCommandAsync (WeaponType weaponType, Vector2Int position, Turn attacker)
-    {
-        // Store weapon type for result handling
-        lastUsedWeapon = weaponType;
-
-        // Create the command (immutable input data) with sequential index
-        int currentCommandIndex = commandCounter++;
-        IAttackCommand command = new AttackCommand(weaponType, position, attacker, currentCommandIndex);
-
-        // Record the command in history for replays and network sync
-        commandHistory.RecordCommand(command);
-
-        // Execute the command asynchronously
-        // Use the weapon executor which handles both single-cell and multi-cell attacks
-        if (weaponType != WeaponType.NormalShot)
-        {
-            await commandExecutor.ExecuteWeaponAttackAsync(command, result => HandleAttackResult(result, currentCommandIndex));
-        }
-        else
-        {
-            await commandExecutor.ExecuteAsync(command, result => HandleAttackResult(result, currentCommandIndex));
-        }
-    }
-
-    // New internal method — used ONLY by ExecuteReceivedCommand
-    private async void ExecuteCommandDirectly (WeaponType weaponType, Vector2Int position, Turn attacker, int commandIndex)
-    {
-        lastUsedWeapon = weaponType;
-
-        IAttackCommand command = new AttackCommand(weaponType, position, attacker, commandIndex);
-        commandHistory.RecordCommand(command);
-
-        if (weaponType != WeaponType.NormalShot)
-            await commandExecutor.ExecuteWeaponAttackAsync(command, result => HandleAttackResult(result, commandIndex));
-        else
-            await commandExecutor.ExecuteAsync(command, result => HandleAttackResult(result, commandIndex));
+        HandleAttackResult(result, weaponType);
     }
 
     /// <summary>
@@ -411,20 +284,15 @@ public class BattleSceneLogic : MonoBehaviour
     /// This is called from BotController.ProcessTurn() after selecting a target position.
     /// The bot-specific logic (adding neighbors on hit) is handled here before executing the command.
     /// </summary>
-    public async void ExecuteBotAttackCommand (WeaponType weaponType, Vector2Int position)
+    public void ExecuteBotAttackCommand (WeaponType weaponType, Vector2Int position)
     {
-        // Store weapon type for result handling
-        lastUsedWeapon = weaponType;
+        if (commandCoordinator == null)
+        {
+            Debug.LogWarning("[BattleSceneLogic] Command coordinator is null — cannot execute bot attack.");
+            return;
+        }
 
-        // Create the command with bot (Player 2) as attacker and sequential index
-        int currentCommandIndex = commandCounter++;
-        IAttackCommand command = new AttackCommand(weaponType, position, Turn.Player2, currentCommandIndex);
-
-        // Record the command in history
-        commandHistory.RecordCommand(command);
-
-        // Execute the command with a special callback for bot result handling
-        await commandExecutor.ExecuteAsync(command, result => HandleBotAttackResult(result, currentCommandIndex));
+        commandCoordinator.ExecuteBotAttack(weaponType, position);
     }
 
     /// <summary>
@@ -432,86 +300,29 @@ public class BattleSceneLogic : MonoBehaviour
     /// This is called after a command executes and handles the game logic response
     /// (checking for sinks, switching turns, etc.)
     /// </summary>
-    private void HandleAttackResult (CellAttackResult result, int commandIndex)
+    private void HandleAttackResult (CellAttackResult result, WeaponType weaponType)
     {
         if (currentState != GameState.Playing)
         {
             return;
         }
 
-        lastExecutedIndex = commandIndex;
-
-        bool isPlayer1Attacking = currentTurn == Turn.Player1;
-        GridManager targetGrid = isPlayer1Attacking ? player2Grid : player1Grid;
-        int attackerIndex = isPlayer1Attacking ? 1 : 2;
-
-        if (TryHandleDefensiveWeapon(attackerIndex))
+        if (attackResolutionService == null)
         {
+            Debug.LogWarning("[BattleSceneLogic] Attack resolution service is null.");
             return;
         }
 
-        ApplyWeaponCostOrReward(attackerIndex);
-
-        if (CheckGameOverAfterSinks(targetGrid, isPlayer1Attacking))
-        {
-            return;
-        }
-
-        HandleTurnAfterAttack(result);
-        ResetSelectedWeapon();
-
-        bool TryHandleDefensiveWeapon (int index)
-        {
-            if (lastUsedWeapon == WeaponType.Radar)
-            {
-                ApplyWeaponCost(index, lastUsedWeapon, "used Radar");
-                ResetSelectedWeapon();
-                return true;
-            }
-
-            if (lastUsedWeapon == WeaponType.AntiAircraft)
-            {
-                ApplyWeaponCost(index, lastUsedWeapon, "set Anti-Aircraft defense");
-                ResetSelectedWeapon();
-                return true;
-            }
-
-            return false;
-        }
-
-        void ApplyWeaponCostOrReward (int index)
-        {
-            if (lastUsedWeapon == WeaponType.NormalShot)
-            {
-                ApplyNormalShotReward(index);
-                return;
-            }
-
-            ApplyWeaponCost(index, lastUsedWeapon, $"used {lastUsedWeapon}");
-        }
-
-        bool CheckGameOverAfterSinks (GridManager grid, bool player1Attacking)
-        {
-            CheckSunkShips(grid);
-            if (!grid.AllShipsSunk())
-            {
-                return false;
-            }
-
-            EndGame(player1Won: player1Attacking);
-            return true;
-        }
-
-        void HandleTurnAfterAttack (CellAttackResult attackResult)
-        {
-            if (!attackResult.WasHit)
-            {
-                SwitchTurn();
-                return;
-            }
-
-            Debug.Log($"[BattleSceneLogic] Bonus turn for {currentTurn}!");
-        }
+        attackResolutionService.HandlePlayerAttackResult(
+            result,
+            currentTurn,
+            player1Grid,
+            player2Grid,
+            weaponType,
+            gameMode,
+            botController,
+            SwitchTurn,
+            EndGame);
     }
 
     /// <summary>
@@ -519,52 +330,27 @@ public class BattleSceneLogic : MonoBehaviour
     /// Handles bot-specific logic like adding neighbors to target list on hit.
     /// This replaces the old OnBotFinishedTurn method.
     /// </summary>
-    private void HandleBotAttackResult (CellAttackResult result, int commandIndex)
+    private void HandleBotAttackResult (CellAttackResult result, WeaponType weaponType)
     {
-        lastExecutedIndex = commandIndex;
-        ApplyBotCpCostOrReward();
-
-        if (CheckBotGameOver())
+        if (currentState != GameState.Playing)
         {
             return;
         }
 
-        HandleBotTurnAfterAttack(result);
-
-        void ApplyBotCpCostOrReward ()
+        if (attackResolutionService == null)
         {
-            if (lastUsedWeapon == WeaponType.NormalShot)
-            {
-                ApplyNormalShotReward(2);
-                return;
-            }
-
-            ApplyWeaponCost(2, lastUsedWeapon, $"Bot used {lastUsedWeapon}");
+            Debug.LogWarning("[BattleSceneLogic] Attack resolution service is null.");
+            return;
         }
 
-        bool CheckBotGameOver ()
-        {
-            CheckSunkShips(player1Grid);
-            if (!player1Grid.AllShipsSunk())
-            {
-                return false;
-            }
-
-            EndGame(player1Won: false);
-            return true;
-        }
-
-        void HandleBotTurnAfterAttack (CellAttackResult attackResult)
-        {
-            if (attackResult.WasHit)
-            {
-                botController?.AddNeighborsToTargets(attackResult.Position);
-                botController?.MakeTurn();
-                return;
-            }
-
-            SwitchTurn();
-        }
+        attackResolutionService.HandleBotAttackResult(
+            result,
+            player1Grid,
+            weaponType,
+            gameMode,
+            botController,
+            SwitchTurn,
+            EndGame);
     }
 
     private void SwitchTurn ()
@@ -597,96 +383,6 @@ public class BattleSceneLogic : MonoBehaviour
     public void OnPassAndPlayReady ()
     {
         onTurnChanged?.Invoke(currentTurn, gameMode);
-    }
-
-    /// <summary>
-    /// Get CP cost of a weapon from the weapon list data
-    /// </summary>
-    private int GetWeaponCPCost (WeaponType weaponType)
-    {
-        if (GameManager.Instance?.weaponListData == null)
-        {
-            return 0;
-        }
-
-        var weaponData = GameManager.Instance.weaponListData.GetWeaponByType(weaponType);
-        return weaponData?.cpCost ?? 0;
-    }
-
-    private void CheckSunkShips (GridManager grid)
-    {
-        var board = grid.GetBoard();
-        if (board == null)
-        {
-            return;
-        }
-
-        var allShips = board.GetAllShips();
-        foreach (var shipInstance in allShips)
-        {
-            if (shipInstance.IsSunk)
-            {
-                foreach (var cellPos in shipInstance.occupiedCells)
-                {
-                    board.MarkAdjacentEmpty(cellPos);
-                }
-
-                var legacyShip = grid.ships.Find(s => s != null && s.shipData != null && s.shipData.shipID == shipInstance.shipId);
-                if (legacyShip != null)
-                {
-                    legacyShip.SetVisible(true);
-                }
-
-                // Notify bot to remove this ship from TrackShip tracking if it was being hunted
-                if (gameMode == GameMode.PlayWithBot && botController != null)
-                {
-                    botController.RemoveTrackedShip(shipInstance.shipId);
-                    botController.RemoveTargetPositions(shipInstance.occupiedCells);
-                }
-
-                grid.GetGridView().SyncFromBoard();
-            }
-        }
-    }
-
-    private void ApplyNormalShotReward (int playerIndex)
-    {
-        var gameManager = GameManager.Instance;
-        if (gameManager == null)
-        {
-            Debug.LogWarning("[BattleSceneLogic] GameManager not found; cannot add CP reward.");
-            return;
-        }
-
-        gameManager.AddCP(playerIndex, 1);
-    }
-
-    private void ApplyWeaponCost (int playerIndex, WeaponType weaponType, string actionLabel)
-    {
-        var gameManager = GameManager.Instance;
-        if (gameManager == null)
-        {
-            Debug.LogWarning("[BattleSceneLogic] GameManager not found; cannot apply CP cost.");
-            return;
-        }
-
-        int cpCost = GetWeaponCPCost(weaponType);
-        if (cpCost <= 0)
-        {
-            return;
-        }
-
-        gameManager.SubtractCP(playerIndex, cpCost);
-        Debug.Log($"[BattleSceneLogic] Player {playerIndex} {actionLabel}, cost: {cpCost} CP");
-    }
-
-    private void ResetSelectedWeapon ()
-    {
-        var weaponManager = BattleWeaponManager.Instance;
-        if (weaponManager != null)
-        {
-            weaponManager.SelectWeapon(WeaponType.NormalShot);
-        }
     }
 
     private async void EndGame (bool player1Won)

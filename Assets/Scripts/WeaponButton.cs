@@ -28,6 +28,12 @@ public class WeaponButton : MonoBehaviour
     /// <summary>
     /// Setup component với dữ liệu vũ khí
     /// </summary>
+
+    void Update ()
+    {
+        // Cập nhật trạng thái button mỗi frame để phản ánh thay đổi gold
+        UpdateAvailability(availableGold);
+    }
     public void Setup (WeaponData weapon, int gold, Action<WeaponData> onSelected, Action<WeaponData> onDeselected = null)
     {
         weaponData = weapon;
@@ -71,8 +77,8 @@ public class WeaponButton : MonoBehaviour
             descriptionText.text = weaponData.description;
         }
 
-        // Cập nhật availability
-        UpdateAvailability(availableGold);
+        // // Cập nhật availability
+        // UpdateAvailability(availableGold);
     }
 
     /// <summary>
@@ -92,14 +98,17 @@ public class WeaponButton : MonoBehaviour
             if (isSelected)
             {
                 colors.normalColor = new Color(1f, 0.8f, 0f, 1f); // Vàng - được chọn
+                colors.selectedColor = new Color(1f, 0.8f, 0f, 1f); // Vàng - được chọn
             }
             else if (!canAfford)
             {
                 colors.normalColor = new Color(0.5f, 0.5f, 0.5f, 1f); // Xám - không đủ gold
+                colors.selectedColor = new Color(0.5f, 0.5f, 0.5f, 1f); // Xám - không đủ gold
             }
             else
             {
                 colors.normalColor = Color.white; // Trắng - có thể mua
+                colors.selectedColor = Color.white; // Trắng - có thể mua
             }
             selectButton.colors = colors;
         }

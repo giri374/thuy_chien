@@ -53,7 +53,7 @@ public class SetupSceneLogic : MonoBehaviour
     public bool CanConfirm ()
     {
         var placements = GameManager.Instance?.GetPlacements(currentPlayer);
-        return placements != null && placements.Count > 0;
+        return placements != null && placements.Count == shipPlacements.Length;
     }
 
     // ── Flow Control ──────────────────────────────────────────

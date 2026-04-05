@@ -6,14 +6,14 @@ namespace Assets.OnlineMode.ConnectionMenu
     using UnityEngine.UI;
     using Unity.Netcode;
     using UnityEngine.SceneManagement;
+    using TMPro;
 
     public class MatchHostConnectionMenuViewController : MonoBehaviour
     {
         [SerializeField]
-        private Text _matchIdTextController;
-
+        private TextMeshProUGUI _matchIdTextController;
         [SerializeField]
-        private Text _statusTextController;
+        private TextMeshProUGUI _statusTextController;
 
         [SerializeField]
         private Button _retryButton;
@@ -132,6 +132,12 @@ namespace Assets.OnlineMode.ConnectionMenu
 
         private void OnBackClicked ()
         {
+            // Xóa tất cả dữ liệu placement
+            GameManager.Instance.ClearAllPlacements();
+
+            // Reset game state
+            GameManager.Instance.SetGameMode(GameMode.PlayWithBot);
+            GameManager.Instance.SetCurrentSetupPlayer(1);
             EConnection.Disconnect();
             SceneManager.LoadScene(SceneNames.MainMenu);
         }

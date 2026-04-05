@@ -104,6 +104,7 @@ public class BattleWeaponButton : MonoBehaviour
         {
             var colors = selectButton.colors;
             colors.normalColor = isSelected ? selectedColor : normalColor;
+            colors.selectedColor = isSelected ? selectedColor : normalColor;
             selectButton.colors = colors;
         }
     }

@@ -1,9 +1,11 @@
 using Core.Models;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEditor.SearchService;
+using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(SpriteRenderer))]
-public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
+public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [Header("Cell Info")]
     public Vector2Int gridPosition;
@@ -59,7 +61,71 @@ public class Cell : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, I
 
     public void OnPointerClick (PointerEventData eventData)
     {
+        // Nếu có tàu ở đây, cho tàu xử lý click trước
+        if (occupyingShip != null && SceneManager.GetActiveScene().name == SceneNames.Setup)
+        {
+            // Forward event to ship's ShipPlacement component
+            var shipPlacement = occupyingShip.GetComponent<ShipPlacement>();
+            if (shipPlacement != null)
+            {
+                shipPlacement.OnPointerClick(eventData);
+            }
+            return;
+        }
+
+        // Nếu không có tàu, Grid xử lý bình thường
         gridManager.OnCellClicked(this);
+    }
+
+    public void OnBeginDrag (PointerEventData eventData)
+    {
+        if (SceneManager.GetActiveScene().name != SceneNames.Setup)
+        {
+            return; // Chỉ cho phép kéo thả trong SetupScene
+        }
+        // Forward drag events to ship's ShipPlacement component
+        if (occupyingShip != null)
+        {
+            var shipPlacement = occupyingShip.GetComponent<ShipPlacement>();
+            if (shipPlacement != null)
+            {
+                shipPlacement.OnBeginDrag(eventData);
+            }
+        }
+    }
+
+    public void OnDrag (PointerEventData eventData)
+    {
+        if (SceneManager.GetActiveScene().name != SceneNames.Setup)
+        {
+            return; // Chỉ cho phép kéo thả trong SetupScene
+        }
+        // Forward drag events to ship's ShipPlacement component
+        if (occupyingShip != null)
+        {
+            var shipPlacement = occupyingShip.GetComponent<ShipPlacement>();
+            if (shipPlacement != null)
+            {
+                shipPlacement.OnDrag(eventData);
+            }
+        }
+    }
+
+    public void OnEndDrag (PointerEventData eventData)
+    {
+        if (SceneManager.GetActiveScene().name != SceneNames.Setup)
+        {
+            return; // Chỉ cho phép kéo thả trong SetupScene
+        }
+        // Forward drag events to ship's ShipPlacement component
+        if (occupyingShip != null)
+        {
+            var shipPlacement = occupyingShip.GetComponent<ShipPlacement>();
+            if (shipPlacement != null)
+            {
+                shipPlacement.OnEndDrag(eventData);
+            }
+        }
     }
 
     public void OnPointerEnter (PointerEventData eventData)

@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 /// <summary>
 /// Quản lý tất cả UI trong BattleScene.
@@ -15,10 +16,14 @@ public class BattleUIManager : MonoBehaviour
     private const string TurnPlayer1 = "Player 1's turn";
     private const string TurnPlayer2 = "Player 2's turn";
     private const string PassAndPlayPrompt = "Give the device to {0}.\nAre you ready?";
-    private const string WinnerYou = "You win! 🎉";
-    private const string WinnerBot = "Bot wins! 🤖";
-    private const string WinnerPlayer1 = "Player 1 wins! 🎉";
-    private const string WinnerPlayer2 = "Player 2 wins! 🎉";
+    private const string WinnerYou = "You win! ";
+    private const string WinnerBot = "Bot wins!";
+    private const string WinnerPlayer1 = "Player 1 wins!";
+    private const string WinnerPlayer2 = "Player 2 wins!";
+    [SerializeField] private GameObject winPanel;
+    [SerializeField] private GameObject losePanel;
+    [SerializeField] private TextMeshProUGUI expAddText;
+    [SerializeField] private TextMeshProUGUI goldAddText;
 
     [Header("Turn UI")]
     public TextMeshProUGUI turnText;
@@ -32,6 +37,9 @@ public class BattleUIManager : MonoBehaviour
     public GameObject gameOverPanel;
     public TextMeshProUGUI gameOverText;
     public Button returnMenuButton;
+
+    [SerializeField] private Image Turn1;
+    [SerializeField] private Image Turn2;
 
     private void Awake ()
     {
@@ -104,11 +112,26 @@ public class BattleUIManager : MonoBehaviour
         if (gameMode == GameMode.PlayWithBot)
         {
             turnText.text = currentTurn == Turn.Player1 ? TurnYour : TurnBot;
+
         }
         else
         {
             turnText.text = currentTurn == Turn.Player1 ? TurnPlayer1 : TurnPlayer2;
         }
+
+        if (currentTurn == Turn.Player1)
+        {
+            // 1.0f là thời gian 1 vòng (to lên + nhỏ lại)
+            // Loop 4 lần, kiểu Yoyo (to xong rồi thu nhỏ về cũ)
+            Turn2.enabled = true;
+            Turn1.enabled = false;
+        }
+        else
+        {
+            Turn1.enabled = true;
+            Turn2.enabled = false;
+        }
+
     }
 
     // ── Pass & Play UI ────────────────────────────────────────
@@ -147,9 +170,36 @@ public class BattleUIManager : MonoBehaviour
 
     public void ShowGameOverPanel (bool player1Won, GameMode gameMode)
     {
-        var winnerText = gameMode == GameMode.PlayWithBot
-            ? player1Won ? WinnerYou : WinnerBot
-            : player1Won ? WinnerPlayer1 : WinnerPlayer2;
+        string winnerText;
+
+        winnerText = player1Won ? WinnerPlayer1 : WinnerPlayer2;
+
+        if (gameMode == GameMode.PlayWithBot)
+        {
+            if (player1Won)
+            {
+                if (winPanel != null)
+                {
+                    expAddText.text = "+ 30";
+                    goldAddText.text = "+ 5";
+                    winPanel.SetActive(true);
+                }
+            }
+            else
+            {
+                if (losePanel != null)
+                {
+                    expAddText.text = "+ 10";
+                    goldAddText.text = "+ 0";
+                    losePanel.SetActive(true);
+                }
+            }
+        }
+        else
+        {
+            expAddText.text = "+ 10";
+            goldAddText.text = "+ 0";
+        }
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(true);

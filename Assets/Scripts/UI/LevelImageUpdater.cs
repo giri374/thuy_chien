@@ -9,13 +9,16 @@ public class LevelImageUpdater : MonoBehaviour
     [Header("Target Image")]
     public Image levelImage;
 
-    public void Start()
+    public void Start ()
     {
-        
+
         // Cập nhật hình ảnh level ngay khi bắt đầu
-        UpdateLevelImage(ProgressManager.Instance.Data.level);
+        if (ProgressManager.Instance != null)
+        {
+            UpdateLevelImage(ProgressManager.Instance.Data.level);
+        }
     }
-    public void UpdateLevelImage(int level)
+    public void UpdateLevelImage (int level)
     {
         if (levelImage == null || levelSprites == null) return;
 

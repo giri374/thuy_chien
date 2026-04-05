@@ -239,7 +239,7 @@ public class BattleWeaponManager : MonoBehaviour
 
         if (selectedWeaponText != null)
         {
-            selectedWeaponText.text = $"Selected: {weaponData.weaponName}";
+            selectedWeaponText.text = $"{weaponData.weaponName} in use";
         }
     }
 
@@ -257,14 +257,14 @@ public class BattleWeaponManager : MonoBehaviour
         if (player1CPText != null)
         {
             int player1CP = GameManager.Instance.GetPlayerCP(1);
-            player1CPText.text = $"P1 CP: {player1CP}";
+            player1CPText.text = $"{player1CP}";
         }
 
         // Update Player 2 CP
         if (player2CPText != null)
         {
             int player2CP = GameManager.Instance.GetPlayerCP(2);
-            player2CPText.text = $"P2 CP: {player2CP}";
+            player2CPText.text = $"{player2CP}";
         }
 
         // Update weapon button availability
