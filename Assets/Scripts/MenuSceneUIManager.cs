@@ -16,6 +16,7 @@ public class MenuSceneUIManager : MonoBehaviour
     public GameObject setMapPanel;
     public Button setNormalMapButton;
     public Button setAdvancedMapButton;
+    public Button setAdvancedMap2Button;
     public Button setMapCancelButton;
 
 
@@ -65,6 +66,23 @@ public class MenuSceneUIManager : MonoBehaviour
         {
             setMapCancelButton.onClick.AddListener(OnSetMapCancel);
         }
+        if (setAdvancedMap2Button != null)
+        {
+            setAdvancedMap2Button.onClick.AddListener(OnSetAdvancedMap2);
+        }
+
+        LockMapButton();
+    }
+
+    private void OnEnable ()
+    {
+        // Poll liên tục để cập nhật button lock/unlock khi level thay đổi
+        InvokeRepeating(nameof(LockMapButton), 0f, 0.5f);
+    }
+
+    private void OnDisable ()
+    {
+        CancelInvoke(nameof(LockMapButton));
     }
 
     // ── Button Callbacks ──────────────────────────────────────
@@ -102,11 +120,13 @@ public class MenuSceneUIManager : MonoBehaviour
     public void OnSetNormalMap ()
     {
         GameManager.Instance.SetGameMap(GameMap.NormalMap);
+        GameManager.Instance.SetRemoveEmptyCells(false);
         GoBattle();
     }
     public void OnSetAdvancedMap ()
     {
         GameManager.Instance.SetGameMap(GameMap.AdvancedMap);
+        GameManager.Instance.SetRemoveEmptyCells(false);
         GoBattle();
     }
 
@@ -130,6 +150,35 @@ public class MenuSceneUIManager : MonoBehaviour
         {
             SceneManager.LoadScene(SceneNames.Setup);
         }
+    }
+
+    public void OnSetAdvancedMap2 ()
+    {
+        GameManager.Instance.SetGameMap(GameMap.AdvancedMap);
+        GameManager.Instance.SetRemoveEmptyCells(true);
+        GoBattle();
+    }
+
+    private void LockMapButton ()
+    {
+        if (ProgressManager.Instance.Data.level < 3)
+        {
+            setAdvancedMap2Button.interactable = false;
+        }
+        else
+        {
+            setAdvancedMap2Button.interactable = true;
+        }
+        if (ProgressManager.Instance.Data.level < 2)
+        {
+            setAdvancedMapButton.interactable = false;
+        }
+        else
+        {
+            setAdvancedMapButton.interactable = true;
+        }
+
+
     }
 
 

@@ -11,8 +11,26 @@ public class LevelImageUpdater : MonoBehaviour
 
     public void Start ()
     {
-
         // Cập nhật hình ảnh level ngay khi bắt đầu
+        if (ProgressManager.Instance != null)
+        {
+            UpdateLevelImage(ProgressManager.Instance.Data.level);
+        }
+    }
+
+    private void OnEnable ()
+    {
+        // Poll liên tục để cập nhật hình ảnh level
+        InvokeRepeating(nameof(RefreshLevelImage), 0f, 0.5f);
+    }
+
+    private void OnDisable ()
+    {
+        CancelInvoke(nameof(RefreshLevelImage));
+    }
+
+    private void RefreshLevelImage ()
+    {
         if (ProgressManager.Instance != null)
         {
             UpdateLevelImage(ProgressManager.Instance.Data.level);

@@ -15,10 +15,12 @@ public class BattleWeaponButton : MonoBehaviour
     public TextMeshProUGUI weaponCPCostText;
     public Button selectButton;
 
+    [Header("Weapon Setup")]
+    [SerializeField] private WeaponType assignedWeaponType = WeaponType.NormalShot;
+
     // Visual state tracking
     private Color selectedColor = Color.yellow;
     private Color normalColor = Color.white;
-    private Color disabledColor = Color.gray;
 
     private WeaponType weaponType;
     private WeaponData currentWeaponData;
@@ -96,6 +98,11 @@ public class BattleWeaponButton : MonoBehaviour
     public WeaponType GetWeaponType () => weaponType;
 
     /// <summary>
+    /// Get assigned weapon type (từ inspector)
+    /// </summary>
+    public WeaponType GetAssignedWeaponType () => assignedWeaponType;
+
+    /// <summary>
     /// Cập nhật màu sắc button
     /// </summary>
     private void UpdateVisuals ()
@@ -125,23 +132,35 @@ public class BattleWeaponButton : MonoBehaviour
     }
 
     /// <summary>
-    /// Check xem có thể select vũ khí không (kiểm tra CP)
+    /// Check xem có thể select vũ khí không (kiểm tra CP + đã chọn vũ khí chưa)
     /// </summary>
     private bool CanSelectWeapon ()
     {
-        // NormalShot không cần CP cost
+        // NormalShot không cần CP cost và luôn có sẵn
         if (weaponType == WeaponType.NormalShot)
         {
             return true;
         }
 
-        // Check CP cho vũ khí khác
-        if (currentWeaponData == null || GameManager.Instance == null)
+        // Check xem player có chọn vũ khí này không
+        if (GameManager.Instance == null)
         {
             return false;
         }
 
-        int playerCP = GameManager.Instance.GetPlayerCP(playerIndex);
+        var selectedWeapons = GameManager.Instance.GetSelectedWeapons(playerIndex);
+        if (!selectedWeapons.Contains(weaponType))
+        {
+            return false;
+        }
+
+        // Check CP cho vũ khí khác
+        if (currentWeaponData == null)
+        {
+            return false;
+        }
+
+        var playerCP = GameManager.Instance.GetPlayerCP(playerIndex);
         return playerCP >= currentWeaponData.cpCost;
     }
 
@@ -150,7 +169,7 @@ public class BattleWeaponButton : MonoBehaviour
     /// </summary>
     public void UpdateAvailability ()
     {
-        bool canSelect = CanSelectWeapon();
+        var canSelect = CanSelectWeapon();
         if (selectButton != null)
         {
             selectButton.interactable = canSelect;

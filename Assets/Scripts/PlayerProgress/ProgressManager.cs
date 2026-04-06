@@ -78,12 +78,9 @@ public class ProgressManager : MonoBehaviour
 #if UNITY_EDITOR
     private void Update ()
     {
-        if (Input.GetKeyDown(KeyCode.W)) { AddGold(10); AddExperience(20); Debug.Log($"[DEV] Gold: {Data.gold} | EXP: {Data.experience} | Level: {Data.level}"); }
-        if (Input.GetKeyDown(KeyCode.G)) { AddGold(10); Debug.Log($"[DEV] Gold: {Data.gold}"); }
-        if (Input.GetKeyDown(KeyCode.E)) { AddExperience(30); Debug.Log($"[DEV] EXP: {Data.experience} | Level: {Data.level}"); }
-        if (Input.GetKeyDown(KeyCode.H)) { AddGold(-10); Debug.Log($"[DEV] Gold: {Data.gold}"); }
-        if (Input.GetKeyDown(KeyCode.S)) { _ = SaveProgress(); Debug.Log("[DEV] Saved!"); }
-        if (Input.GetKeyDown(KeyCode.R)) { Data = new PlayerProgressData(); Debug.Log("[DEV] Reset data!"); }
+        if (Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.W)) { AddGold(10); AddExperience(20); Debug.Log($"[DEV] Gold: {Data.gold} | EXP: {Data.experience} | Level: {Data.level}"); }
+        if (Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.S)) { _ = SaveProgress(); Debug.Log("[DEV] Saved!"); }
+        if (Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.R)) { Data = new PlayerProgressData(); Debug.Log("[DEV] Reset data!"); }
     }
 #endif
 }

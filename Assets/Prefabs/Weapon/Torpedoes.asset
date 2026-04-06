@@ -15,7 +15,7 @@ MonoBehaviour:
   type: 3
   weaponName: Torpedoes
   goldCost: 10
-  cpCost: 0
+  cpCost: 3
   effectPrefab: {fileID: 0}
   icon: {fileID: 8912931992306401145, guid: 9f8bfd48f912d7b46bd19c2fd9573e07, type: 3}
   description: 

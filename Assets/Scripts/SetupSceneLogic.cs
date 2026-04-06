@@ -62,9 +62,16 @@ public class SetupSceneLogic : MonoBehaviour
     {
         var mode = GameManager.Instance?.gameMode ?? GameMode.PlayWithBot;
 
-        if (mode == GameMode.PlayWithFriend && currentPlayer == 1)
+        if (mode == GameMode.PlayWithFriend)
         {
-            return GameFlowAction.ShowPassDevice;
+            if (currentPlayer == 1)
+            {
+                return GameFlowAction.ShowPassDevice;  // Player 1 xong → PassDevice
+            }
+            else
+            {
+                return GameFlowAction.GoToBattle;      // Player 2 xong → Battle
+            }
         }
         if (mode == GameMode.PlayOnline)
         {

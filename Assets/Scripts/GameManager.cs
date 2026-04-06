@@ -7,6 +7,7 @@ public class GameManager : MonoBehaviour
 
     public GameMode gameMode { get; private set; } = GameMode.PlayWithBot;
     public GameMap gameMap { get; private set; } = GameMap.NormalMap;
+    public bool removeEmptyCells = false;
     public int currentSetupPlayer { get; private set; } = 1;
 
     [Header("Ship Data")]
@@ -53,6 +54,12 @@ public class GameManager : MonoBehaviour
     {
         gameMap = map;
         Debug.Log($"[GameManager] GameMap = {map}");
+    }
+
+    public void SetRemoveEmptyCells (bool isremove)
+    {
+        removeEmptyCells = isremove;
+        Debug.Log($"[GameManager] RemoveEmptyCells = {isremove}");
     }
 
     public void SetCurrentSetupPlayer (int playerIndex)

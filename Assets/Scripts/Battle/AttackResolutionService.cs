@@ -170,6 +170,7 @@ public class AttackResolutionService
         }
 
         gameManager.AddCP(playerIndex, 1);
+        BattleWeaponManager.Instance?.RefreshCPDisplay();
     }
 
     private void ApplyWeaponCost (int playerIndex, WeaponType weaponType, string actionLabel)
@@ -188,6 +189,7 @@ public class AttackResolutionService
         }
 
         gameManager.SubtractCP(playerIndex, cpCost);
+        BattleWeaponManager.Instance?.RefreshCPDisplay();
         Debug.Log($"[BattleSceneLogic] Player {playerIndex} {actionLabel}, cost: {cpCost} CP");
     }
 

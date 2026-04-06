@@ -70,6 +70,11 @@ public class BattleUIManager : MonoBehaviour
             BattleSceneLogic.Instance.onTurnChanged += UpdateTurnUI;
             BattleSceneLogic.Instance.onPassAndPlayNeeded += ShowPassAndPlayScreen;
             BattleSceneLogic.Instance.onGameOver += ShowGameOverPanel;
+
+            var initialMode = GameManager.Instance != null
+                ? GameManager.Instance.gameMode
+                : GameMode.PlayWithBot;
+            UpdateTurnUI(BattleSceneLogic.Instance.currentTurn, initialMode);
         }
 
         SetupButtons();
@@ -131,7 +136,6 @@ public class BattleUIManager : MonoBehaviour
             Turn1.enabled = true;
             Turn2.enabled = false;
         }
-
     }
 
     // ── Pass & Play UI ────────────────────────────────────────

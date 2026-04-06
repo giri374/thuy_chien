@@ -25,4 +25,3 @@ Sau khi match trận, người chơi đi tới BattleScene. Các dữ liệu Shi
 
 Ở Scene đầu game, đã có NetworkManager, UnityTransport, NetworkObject từ Unity.
 NetworkObject được gắn cùng EGameMatch.cs.
-

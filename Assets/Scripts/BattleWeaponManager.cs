@@ -18,7 +18,9 @@ public class BattleWeaponManager : MonoBehaviour
     public TextMeshProUGUI player1CPText;
     public TextMeshProUGUI player2CPText;
     public Transform weaponButtonContainer;
-    public GameObject weaponButtonPrefab;
+
+    [Header("Weapon Buttons (Pre-placed)")]
+    public BattleWeaponButton[] weaponButtons;
 
     [Header("Settings")]
     public bool autoShowCurrentPlayerWeapons = true;
@@ -26,7 +28,7 @@ public class BattleWeaponManager : MonoBehaviour
     // Current state
     private Turn currentTurn = Turn.Player1;
     private WeaponType currentWeapon = WeaponType.NormalShot;
-    private Dictionary<WeaponType, BattleWeaponButton> weaponButtons = new Dictionary<WeaponType, BattleWeaponButton>();
+    private Dictionary<WeaponType, BattleWeaponButton> weaponButtonMap = new Dictionary<WeaponType, BattleWeaponButton>();
 
     private void Start ()
     {
@@ -70,7 +72,7 @@ public class BattleWeaponManager : MonoBehaviour
     // ── Weapon Display ────────────────────────────────────────
 
     /// <summary>
-    /// Load và hiển thị vũ khí của người chơi hiện tại
+    /// Setup vũ khí của người chơi hiện tại cho các pre-placed buttons
     /// </summary>
     private void RefreshWeaponDisplay ()
     {
@@ -81,100 +83,84 @@ public class BattleWeaponManager : MonoBehaviour
         // Cập nhật CP display
         UpdateCPDisplay();
 
-        // Đảm bảo container có VerticalLayoutGroup
-        var layoutGroup = weaponButtonContainer.GetComponent<VerticalLayoutGroup>();
-        if (layoutGroup == null)
-        {
-            layoutGroup = weaponButtonContainer.gameObject.AddComponent<VerticalLayoutGroup>();
-            layoutGroup.childForceExpandHeight = false;
-            layoutGroup.childForceExpandWidth = true;
-        }
-
-        // Clear old buttons
-        ClearWeaponButtons();
-
-        // Nếu không có vũ khí được chọn, hiển thị default
-        if (selectedWeapons.Count == 0)
-        {
-            Debug.LogWarning($"[BattleWeaponManager] Player {playerIndex} has no selected weapons!");
-            SetSelectedWeaponInfo(WeaponType.NormalShot);
-            return;
-        }
-
-        // Tạo buttons cho mỗi vũ khí
-        int buttonCount = 0;
-        foreach (var weaponType in selectedWeapons)
-        {
-            CreateWeaponButton(weaponType);
-            buttonCount++;
-        }
+        // Setup tất cả các buttons từ array
+        SetupWeaponButtons(playerIndex, selectedWeapons);
 
         // Set first weapon as current
-        if (buttonCount > 0)
+        if (selectedWeapons.Count > 0)
         {
             currentWeapon = selectedWeapons[0];
             SelectWeapon(currentWeapon);
         }
+        else
+        {
+            Debug.LogWarning($"[BattleWeaponManager] Player {playerIndex} has no selected weapons!");
+            SetSelectedWeaponInfo(WeaponType.NormalShot);
+        }
 
-        // Force rebuild layout
-        LayoutRebuilder.ForceRebuildLayoutImmediate(weaponButtonContainer.GetComponent<RectTransform>());
-
-        Debug.Log($"[BattleWeaponManager] Loaded {buttonCount} weapons for Player {playerIndex}");
+        Debug.Log($"[BattleWeaponManager] Setup weapons for Player {playerIndex}");
     }
 
     /// <summary>
-    /// Tạo button cho một vũ khí
+    /// Setup tất cả pre-placed buttons dựa vào vũ khí đã chọn của player
     /// </summary>
-    private void CreateWeaponButton (WeaponType weaponType)
+    private void SetupWeaponButtons (int playerIndex, List<WeaponType> selectedWeapons)
     {
-        var weaponData = GameManager.Instance.weaponListData.GetWeaponByType(weaponType);
-        if (weaponData == null)
+        if (weaponButtons == null || weaponButtons.Length == 0)
         {
-            Debug.LogError($"[BattleWeaponManager] WeaponData not found for type {weaponType}");
+            Debug.LogError("[BattleWeaponManager] No weapon buttons assigned in inspector!");
             return;
         }
 
-        var buttonObj = Instantiate(weaponButtonPrefab, weaponButtonContainer);
-        var buttonRect = buttonObj.GetComponent<RectTransform>();
-
-        // Đặt lại anchor để nằm đúng trong container
-        if (buttonRect != null)
+        // Xây dựng dictionary: assignedWeaponType -> button
+        weaponButtonMap.Clear();
+        foreach (var button in weaponButtons)
         {
-            buttonRect.anchorMin = new Vector2(0, 1);
-            buttonRect.anchorMax = new Vector2(1, 1);
-            buttonRect.pivot = new Vector2(0.5f, 1);
-            buttonRect.offsetMin = Vector2.zero;
-            buttonRect.offsetMax = Vector2.zero;
+            if (button != null)
+            {
+                var assignedType = button.GetAssignedWeaponType();
+                weaponButtonMap[assignedType] = button;
+            }
         }
 
-        // Thêm LayoutElement nếu chưa có
-        var layoutElement = buttonObj.GetComponent<LayoutElement>();
-        if (layoutElement == null)
+        // Setup từng button
+        foreach (var button in weaponButtons)
         {
-            layoutElement = buttonObj.AddComponent<LayoutElement>();
-        }
-        layoutElement.preferredHeight = 80; // Chiều cao button
+            if (button == null) continue;
 
-        var battleWeaponButton = buttonObj.GetComponent<BattleWeaponButton>();
+            var assignedType = button.GetAssignedWeaponType();
+            var weaponData = GameManager.Instance.weaponListData.GetWeaponByType(assignedType);
 
-        if (battleWeaponButton != null)
-        {
-            int playerIndex = currentTurn == Turn.Player1 ? 1 : 2;
-            battleWeaponButton.Setup(weaponType, weaponData, OnWeaponSelected, playerIndex);
-            weaponButtons[weaponType] = battleWeaponButton;
+            if (weaponData == null)
+            {
+                Debug.LogError($"[BattleWeaponManager] WeaponData not found for type {assignedType}");
+                continue;
+            }
+
+            // Setup button với weapon data
+            button.Setup(assignedType, weaponData, OnWeaponSelected, playerIndex);
+
+            // Update interactable state dựa vào selected weapons list + CP
+            // Button sẽ hiển thị tất cả, chỉ set interactable = false nếu không được phép sử dụng
+            button.gameObject.SetActive(true);
+            button.UpdateAvailability();
         }
     }
 
     /// <summary>
-    /// Xóa tất cả weapon buttons
+    /// Reset weapon button listeners để tránh duplicate callbacks
     /// </summary>
-    private void ClearWeaponButtons ()
+    private void ResetWeaponButtonListeners ()
     {
-        foreach (Transform child in weaponButtonContainer)
+        if (weaponButtons == null || weaponButtons.Length == 0) return;
+
+        foreach (var button in weaponButtons)
         {
-            Destroy(child.gameObject);
+            if (button != null && button.selectButton != null)
+            {
+                button.selectButton.onClick.RemoveAllListeners();
+            }
         }
-        weaponButtons.Clear();
     }
 
     // ── Weapon Selection ──────────────────────────────────────
@@ -193,9 +179,9 @@ public class BattleWeaponManager : MonoBehaviour
     public void SelectWeapon (WeaponType weaponType)
     {
         // Update previous button
-        if (weaponButtons.ContainsKey(currentWeapon))
+        if (weaponButtonMap.ContainsKey(currentWeapon))
         {
-            weaponButtons[currentWeapon].SetSelected(false);
+            weaponButtonMap[currentWeapon].SetSelected(false);
         }
 
         // Update current weapon
@@ -203,9 +189,9 @@ public class BattleWeaponManager : MonoBehaviour
         SetSelectedWeaponInfo(weaponType);
 
         // Update new button
-        if (weaponButtons.ContainsKey(currentWeapon))
+        if (weaponButtonMap.ContainsKey(currentWeapon))
         {
-            weaponButtons[currentWeapon].SetSelected(true);
+            weaponButtonMap[currentWeapon].SetSelected(true);
         }
 
         Debug.Log($"[BattleWeaponManager] Selected weapon: {weaponType}");
@@ -274,13 +260,22 @@ public class BattleWeaponManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Public API để force refresh CP UI ngay khi CP thay đổi.
+    /// </summary>
+    public void RefreshCPDisplay ()
+    {
+        UpdateCPDisplay();
+    }
+
+    /// <summary>
     /// Cập nhật trạng thái available/disabled của các weapon button dựa trên CP
     /// </summary>
     private void UpdateWeaponButtonsAvailability ()
     {
-        foreach (var kvp in weaponButtons)
+        if (weaponButtons == null || weaponButtons.Length == 0) return;
+
+        foreach (var button in weaponButtons)
         {
-            var button = kvp.Value;
             if (button != null)
             {
                 button.UpdateAvailability();

@@ -1301,7 +1301,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ecdea511c88b004bbae0e082be4fce4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _matchIdTextController: {fileID: 476893474}
+  _matchIdTextController: {fileID: 1976445982}
   _joinMatchButton: {fileID: 183630147}
   _statusTextController: {fileID: 959170815}
   _retryButton: {fileID: 998724331}

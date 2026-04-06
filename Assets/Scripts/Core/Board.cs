@@ -178,6 +178,21 @@ public class Board
         return cells[position.x, position.y];
     }
 
+    /// <summary>
+    /// Sets the state of a cell at the given position.
+    /// </summary>
+    public void SetCellState (Vector2Int position, CellState newState)
+    {
+        if (!IsWithinBounds(position))
+        {
+            return;
+        }
+
+        var cellData = cells[position.x, position.y];
+        cellData.state = newState;
+        cells[position.x, position.y] = cellData;
+    }
+
     public CellData[,] GetAllCells ()
     {
         return (CellData[,]) cells.Clone();

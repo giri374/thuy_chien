@@ -277,6 +277,12 @@ public class WeaponSetupUIManager : MonoBehaviour
             // Load lại scene để player 2 chọn vũ khí
             SceneManager.LoadScene(SceneNames.WeaponSetup);
         }
+        else if (gameMode == GameMode.PlayWithFriend && currentPlayer == 2)
+        {
+            // Player 2 xác nhận: trở lại Player 1 để SetupScene Player 1
+            GameManager.Instance.SetCurrentSetupPlayer(1);
+            SceneManager.LoadScene(SceneNames.Setup);
+        }
         else
         {
             // Chuyển sang SetupScene

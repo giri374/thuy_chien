@@ -1,7 +1,6 @@
 using Core.Models;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEditor.SearchService;
 using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(SpriteRenderer))]

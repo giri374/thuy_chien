@@ -365,18 +365,23 @@ public class BattleSceneLogic : MonoBehaviour
                 botController?.MakeTurn();
             }
         }
+        else if (gameMode == GameMode.PlayOnline)
+        {
+            currentTurn = (currentTurn == Turn.Player1) ? Turn.Player2 : Turn.Player1;
+            onTurnChanged?.Invoke(currentTurn, gameMode);
+        }
         else
         {
-            if (currentTurn == Turn.Player1)
-            {
-                currentTurn = Turn.Player2;
-            }
-            else
-            {
-                currentTurn = Turn.Player1;
-            }
+            currentTurn = (currentTurn == Turn.Player1) ? Turn.Player2 : Turn.Player1;
 
             onPassAndPlayNeeded?.Invoke(currentTurn);
+        }
+
+        // Remove empty cells if enabled in GameManager
+        if (GameManager.Instance != null && GameManager.Instance.removeEmptyCells)
+        {
+            player1Grid?.RemoveEmptyCells();
+            player2Grid?.RemoveEmptyCells();
         }
     }
 

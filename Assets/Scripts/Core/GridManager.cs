@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Core.Models;
 
 [RequireComponent(typeof(Grid))]
 public class GridManager : MonoBehaviour
@@ -23,7 +24,7 @@ public class GridManager : MonoBehaviour
     public List<Ship> ships { get; private set; } = new List<Ship>();
     public Grid grid { get; private set; }
 
-    private void Awake()
+    private void Awake ()
     {
         grid = GetComponent<Grid>();
         CreateGrid();
@@ -36,12 +37,12 @@ public class GridManager : MonoBehaviour
         gridView.Initialize(logicBoard, cells);
     }
 
-    public void Initialize(SetupSceneUIManager manager)
+    public void Initialize (SetupSceneUIManager manager)
     {
         setupSceneManager = manager;
     }
 
-    private void CreateGrid()
+    private void CreateGrid ()
     {
         cells = new Cell[gridWidth, gridHeight];
 
@@ -54,7 +55,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    private void CreateCell(int x, int y)
+    private void CreateCell (int x, int y)
     {
         var cellPosition = new Vector3Int(x, y, 0);
         var worldPosition = grid.CellToWorld(cellPosition);
@@ -70,14 +71,14 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    public Cell GetCell(int x, int y)
+    public Cell GetCell (int x, int y)
     {
         return x < 0 || x >= gridWidth || y < 0 || y >= gridHeight ? null : cells[x, y];
     }
 
-    public Cell GetCell(Vector2Int position) => GetCell(position.x, position.y);
+    public Cell GetCell (Vector2Int position) => GetCell(position.x, position.y);
 
-    public void OnCellClicked(Cell cell)
+    public void OnCellClicked (Cell cell)
     {
         if (BattleSceneLogic.Instance != null)
         {
@@ -94,7 +95,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    public bool CanPlaceShip(Ship ship, Vector2Int origin)
+    public bool CanPlaceShip (Ship ship, Vector2Int origin)
     {
         if (ship?.shipData == null)
         {
@@ -104,7 +105,7 @@ public class GridManager : MonoBehaviour
         return logicBoard.CanPlaceShip(ship.shipData.shipID, origin, ship.isHorizontal, ship.shipData);
     }
 
-    public bool PlaceShip(Ship ship, Vector2Int origin)
+    public bool PlaceShip (Ship ship, Vector2Int origin)
     {
         if (!CanPlaceShip(ship, origin))
         {
@@ -152,7 +153,7 @@ public class GridManager : MonoBehaviour
         return true;
     }
 
-    public void RemoveShip(Ship ship)
+    public void RemoveShip (Ship ship)
     {
         if (ship?.shipData == null)
         {
@@ -164,7 +165,7 @@ public class GridManager : MonoBehaviour
         gridView.SyncFromBoard();
     }
 
-    public bool AttackCell(Vector2Int position)
+    public bool AttackCell (Vector2Int position)
     {
         var cell = GetCell(position);
         if (cell == null)
@@ -181,7 +182,7 @@ public class GridManager : MonoBehaviour
         return wasHit;
     }
 
-    public void MarkAdjacentCellsEmpty(Ship sunkShip)
+    public void MarkAdjacentCellsEmpty (Ship sunkShip)
     {
         foreach (var occupiedCell in sunkShip.occupiedCells)
         {
@@ -191,22 +192,22 @@ public class GridManager : MonoBehaviour
         gridView.SyncFromBoard();
     }
 
-    public Board GetBoard()
+    public Board GetBoard ()
     {
         return logicBoard;
     }
 
-    public GridView GetGridView()
+    public GridView GetGridView ()
     {
         return gridView;
     }
 
-    public bool AllShipsSunk()
+    public bool AllShipsSunk ()
     {
         return logicBoard.AllShipsSunk();
     }
 
-    public void ResetGrid()
+    public void ResetGrid ()
     {
         for (int x = 0; x < gridWidth; x++)
         {
@@ -227,7 +228,7 @@ public class GridManager : MonoBehaviour
         ships.Clear();
     }
 
-    public void ResetGridOnly()
+    public void ResetGridOnly ()
     {
         for (int x = 0; x < gridWidth; x++)
         {
@@ -238,5 +239,28 @@ public class GridManager : MonoBehaviour
         }
 
         ships.Clear();
+    }
+
+    public void RemoveEmptyCells ()
+    {
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                var cellData = logicBoard.GetCell(new Vector2Int(x, y));
+                if (cellData.state == CellState.Empty)
+                {
+                    var cell = GetCell(x, y);
+                    if (cell != null)
+                    {
+                        // Update Board's internal state
+                        logicBoard.SetCellState(new Vector2Int(x, y), CellState.Unknown);
+
+                        // Update Cell's visual state
+                        cell.SetCellState(CellState.Unknown);
+                    }
+                }
+            }
+        }
     }
 }

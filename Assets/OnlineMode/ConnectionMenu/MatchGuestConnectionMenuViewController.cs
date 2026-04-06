@@ -13,7 +13,7 @@ namespace Assets.OnlineMode.ConnectionMenu
     public class MatchGuestConnectionMenuViewController : MonoBehaviour
     {
         [SerializeField]
-        private TextMeshProUGUI _matchIdTextController;
+        private TMP_InputField _matchIdTextController;
         [SerializeField]
         private Button _joinMatchButton;
 
@@ -45,7 +45,7 @@ namespace Assets.OnlineMode.ConnectionMenu
             StartConnectionWatch();
         }
 
-        private string JoinString => _matchIdTextController.text.Trim().ToUpperInvariant();
+        private string JoinString => _matchIdTextController.text.ToUpperInvariant();
 
         private void ConfirmJoinMatch ()
         {
